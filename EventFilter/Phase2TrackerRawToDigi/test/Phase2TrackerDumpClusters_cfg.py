@@ -52,7 +52,7 @@ process.Phase2TrackerDumpClusters.ProductLabel = cms.InputTag("Unpacker", "", "P
 
 
 ## Load Geometry for the D98 configuration
-process.load('Configuration.Geometry.GeometryExtended2026D98Reco_cff')
+process.load('Configuration.Geometry.GeometryExtendedRun4D98Reco_cff')
 
 # Load the standard sequences for conditions and global tags
 process.load('Configuration.StandardSequences.FrontierConditions_GlobalTag_cff')
