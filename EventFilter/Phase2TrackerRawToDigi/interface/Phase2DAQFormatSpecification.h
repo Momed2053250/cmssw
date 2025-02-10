@@ -26,13 +26,15 @@ namespace Phase2DAQFormatSpecification
     static const int SCLUSTER_ADDRESS_PS_MAX_VALUE = 0x7F;
     static const int SCLUSTER_ADDRESS_BITS_PS = 7;
 
-    static const int SCLUSTER_ADDRESS_BITS_HEX = 0x7F;
+    static const int SCLUSTER_ADDRESS_BITS_MASK = 0x7F;
     static const int IS_SEED_SENSOR_BITS = 0x01;
 
     static const int WIDTH_MAX_VALUE = 0x7;
     static const int WIDTH_BITS = 3;
 
     static const int MIP_BITS = 1;
+    static const int MIP_BITS_MASK = 0x1;
+    static const int PS_Z_BITS_MASK = 0xF;
 
     static const int SS_CLUSTER_BITS = 14;
     static const int PX_CLUSTER_BITS = 17;
@@ -47,6 +49,7 @@ namespace Phase2DAQFormatSpecification
     static const int N_CLUSTER_MASK = 0x7F;
     static const int SS_CLUSTER_WORD_MASK = 0x3FFF;
     static const int PX_CLUSTER_WORD_MASK = 0x1FFFF;
+
     
 
     typedef std::bitset<32> Word32Bits;

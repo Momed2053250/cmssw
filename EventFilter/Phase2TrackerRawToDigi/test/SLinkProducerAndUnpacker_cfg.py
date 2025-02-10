@@ -42,6 +42,19 @@ process.load('Configuration.StandardSequences.MagneticField_cff')
 process.load('FWCore.MessageService.MessageLogger_cfi')
 process.MessageLogger.A = dict(limit = -1)
 
+process.MessageLogger = cms.Service("MessageLogger",
+    destinations = cms.untracked.vstring('logUnpacker'),
+    categories = cms.untracked.vstring('RawToClusterProducer'),
+    debugModules  = cms.untracked.vstring('*'),
+    logUnpacker = cms.untracked.PSet(
+        threshold = cms.untracked.string('DEBUG'),
+        INFO =  cms.untracked.PSet(limit = cms.untracked.int32(0)),
+        DEBUG = cms.untracked.PSet(limit = cms.untracked.int32(0)),
+        RawToClusterProducer = cms.untracked.PSet(limit = cms.untracked.int32(999999999))
+    ),
+)
+
+
 if GEOMETRY == "D88" or GEOMETRY == 'D98':
 #     print("using geometry " + GEOMETRY + " (tilted)")
     process.load('Configuration.Geometry.GeometryExtendedRun4' + GEOMETRY + 'Reco_cff')
