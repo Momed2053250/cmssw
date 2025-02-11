@@ -323,9 +323,8 @@ uint32_t RawToClusterProducer::readLine(const unsigned char* dataPtr, int lineId
 std::pair<Phase2TrackerCluster1D, bool> RawToClusterProducer::unpack2S(uint32_t clusterWord, unsigned int iChannel){
 
     uint32_t chipID = (clusterWord >> (SS_CLUSTER_BITS - CHIP_ID_BITS)) & CHIP_ID_MAX_VALUE; // 3 bits
-    uint32_t sclusterAddress_toDelete = (clusterWord >> 3) & 0xFF; // only for debugging
-    uint32_t sclusterAddress = (clusterWord >> (SS_CLUSTER_BITS - CHIP_ID_BITS - SCLUSTER_ADDRESS_ONLY_BITS_2S)) & SCLUSTER_ADDRESS_BITS_MASK; // why not uint16?
-    bool isSeedSensor = (clusterWord >> (SS_CLUSTER_BITS - CHIP_ID_BITS - SCLUSTER_ADDRESS_BITS_2S)) & IS_SEED_SENSOR_BITS; // 8 bits
+    uint32_t sclusterAddress = (clusterWord >> (SS_CLUSTER_BITS - CHIP_ID_BITS - SCLUSTER_ADDRESS_ONLY_BITS_2S)) & SCLUSTER_ADDRESS_MASK; // why not uint16?
+    bool isSeedSensor = (clusterWord >> (SS_CLUSTER_BITS - CHIP_ID_BITS - SCLUSTER_ADDRESS_BITS_2S)) & IS_SEED_SENSOR_MASK; // 8 bits
     uint32_t width = clusterWord &  WIDTH_MAX_VALUE; // 3 bits
     // cluster width is truncated during packing (3 bits)
     // since width = 0 is unphysical, we can at least recover cluster with width == 8 
@@ -336,7 +335,7 @@ std::pair<Phase2TrackerCluster1D, bool> RawToClusterProducer::unpack2S(uint32_t 
     // (e.g. if width > 8, pack with width = 0) 
     if (width == 0) width = 8;
     LogTrace("RawToClusterProducer") << "\t[unpacking] chipID : " << (chipID) << "\t " << std::bitset<3>(chipID);
-    LogTrace("RawToClusterProducer") << "\t[unpacking] address : " << (sclusterAddress_toDelete) << "\t " << std::bitset<8>(sclusterAddress_toDelete);
+    LogTrace("RawToClusterProducer") << "\t[unpacking] address : " << (sclusterAddress) << "\t " << std::bitset<8>(sclusterAddress);
     LogTrace("RawToClusterProducer") << "\t[unpacking] width : " << (width) << "\t " << std::bitset<3>(width);
     LogTrace("RawToClusterProducer") << "";
     
