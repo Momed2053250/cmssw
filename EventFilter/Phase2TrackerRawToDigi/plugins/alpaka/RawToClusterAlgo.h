@@ -5,7 +5,7 @@
 #include "HeterogeneousCore/AlpakaCore/interface/alpaka/Event.h" 
 
 #include "DataFormats/FEDRawData/interface/alpaka/StripPixelDeviceCollection.h"
-#include "DataFormats/Phase2TrackerCluster/interface/alpaka/ClusterPropDeviceCollection.h"
+#include "DataFormats/Phase2TrackerCluster/interface/ClusterPropDeviceCollection.h"
 
 namespace ALPAKA_ACCELERATOR_NAMESPACE {
 

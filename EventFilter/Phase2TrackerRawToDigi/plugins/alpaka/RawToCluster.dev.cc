@@ -4,7 +4,7 @@
 #include "HeterogeneousCore/AlpakaInterface/interface/workdivision.h"
 
 #include "DataFormats/FEDRawData/interface/alpaka/StripPixelDeviceCollection.h"
-#include "DataFormats/Phase2TrackerCluster/interface/alpaka/ClusterPropDeviceCollection.h"
+#include "DataFormats/Phase2TrackerCluster/interface/ClusterPropDeviceCollection.h"
 #include "EventFilter/Phase2TrackerRawToDigi/interface/SensorHybrid.h"
 #include "EventFilter/Phase2TrackerRawToDigi/interface/Phase2TrackerSpecifications.h"
 #include "EventFilter/Phase2TrackerRawToDigi/interface/Phase2DAQFormatSpecification.h"

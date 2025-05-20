@@ -2,10 +2,10 @@
 #include "DataFormats/FEDRawData/interface/StripPixelHostCollection.h"
 #include "DataFormats/Phase2TrackerCluster/interface/ClusterPropHostCollection.h"
 #include "DataFormats/FEDRawData/interface/alpaka/StripPixelDeviceCollection.h"
-#include "DataFormats/Phase2TrackerCluster/interface/alpaka/ClusterPropDeviceCollection.h"
+#include "DataFormats/Phase2TrackerCluster/interface/ClusterPropDeviceCollection.h"
 
 #include "DataFormats/Portable/interface/alpaka/PortableCollection.h"
-
+#include "DataFormats/Phase2TrackerCluster/interface/alpaka/ClusterPropSoACollection.h"
 #include "FWCore/Framework/interface/MakerMacros.h"
 #include "FWCore/ParameterSet/interface/ConfigurationDescriptions.h"
 #include "FWCore/ParameterSet/interface/ParameterSet.h"
@@ -93,7 +93,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
    // edm::EDGetTokenT<Phase2TrackerCluster1DCollectionNew> OutputClusterCollectionToken_;
     // our new output token
     //cms::alpaka
-	   device::EDPutToken<Phase2RawToCluster::ClusterPropHostCollection> outputToken_;
+	   device::EDPutToken<Phase2RawToCluster::ClusterPropSoACollection> outputToken_;
 
        // cached ES pointers
     const TrackerDetToDTCELinkCablingMap* cablingMap_ = nullptr;
@@ -255,7 +255,8 @@ StripPixelHos	auto blocks = cms::alpakatools::divide_up_by(static_cast<uint32_t>
 */
 
 	  // 5) Allocate a host-side SOA for the output and memcpy the result back
-	  ClusterPropHostCollection hostClusterProp(totalWords, queue);
+//	  ClusterPropHostCollection 
+	 Phase2RawToCluster::ClusterPropSoACollection  hostClusterProp(totalWords, queue);
 	  alpaka::memcpy(
 	    queue,
 	    hostClusterProp.buffer(),      // host destination pointer
