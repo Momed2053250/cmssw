@@ -5,3 +5,27 @@
   <use name="PhysicsTools/UtilAlgos"/>
   <flags EDM_PLUGIN="1"/>
 </library>
+
+<!-- alpaka-based portable plugins -->
+<library file="alpaka/*.cc" name="Phase2RawToDigiProduceralpaka">
+  <use name="alpaka"/>
+  <use name="CondFormats/DataRecord"/>
+  <use name="CondFormats/HGCalObjects"/>
+  <use name="DataFormats/HGCalDigi"/>
+  <use name="DataFormats/HGCalRecHit"/>
+  <use name="DataFormats/Math"/>
+  <use name="DataFormats/TestObjects"/>
+  <use name="FWCore/Framework"/>
+  <use name="FWCore/MessageLogger"/>
+  <use name="FWCore/ParameterSet"/>
+  <use name="FWCore/Utilities"/>
+  <use name="Geometry/Records"/>
+  <use name="Geometry/TrackerGeometryBuilder"/>
+  <use name="CondFormats/SiPhase2TrackerObjects"/>
+  <use name="HeterogeneousCore/AlpakaCore"/>
+  <use name="HeterogeneousCore/AlpakaInterface"/>
+  <use name="RecoLocalCalo/HGCalRecAlgos"/>
+  <flags ALPAKA_BACKENDS="1"/>
+  <flags EDM_PLUGIN="1"/>
+</library>
+~           

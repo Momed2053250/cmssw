@@ -14,4 +14,10 @@
     <class name="edm::ContainerMask<edmNew::DetSetVector<Phase2TrackerCluster1D> >"/>
     <class name="edm::RefProd<edmNew::DetSetVector<Phase2TrackerCluster1D> >" />
     <class name="edm::Wrapper<edm::ContainerMask<edmNew::DetSetVector<Phase2TrackerCluster1D> > >"/>
+    <!-- adding for alpaka -->
+ <class name="Phase2RawToCluster::ClusterPropSoA"/>
+ <class name="Phase2RawToCluster::ClusterPropSoA::View"/>
+ <class name="Phase2RawToCluster::ClusterPropHostCollection"/>
+ <class name="edm::Wrapper<Phase2RawToCluster::ClusterPropHostCollection>" splitLevel="0"/>
+
 </lcgdict>
