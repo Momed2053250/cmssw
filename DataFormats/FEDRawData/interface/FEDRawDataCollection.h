@@ -34,8 +34,11 @@ public:
   FEDRawDataCollection& operator=(const FEDRawDataCollection&) = default;
 
   void swap(FEDRawDataCollection& other) { data_.swap(other.data_); }
-
+  FEDRawData const* data() const {
+  return data_.data();
+  }
 private:
+
   std::vector<FEDRawData> data_;  ///< the raw data
 };
 

@@ -97,6 +97,7 @@ enum WhichModule:int {undef, TwoS ,PS };
     const edm::ESGetToken<TrackerTopology, TrackerTopologyRcd> trackerTopologyToken_;
    // edm::EDGetTokenT<Phase2TrackerCluster1DCollectionNew> OutputClusterCollectionToken_;
     // our new output token
+    //cms::alpaka
 	   device::EDPutToken<Phase2RawToCluster::ClusterPropSoACollection> outputToken_;
 
        // cached ES pointers
@@ -107,8 +108,8 @@ enum WhichModule:int {undef, TwoS ,PS };
     // make the host buffers 
     // DTC*slink *channel -> DetIdx 
     cms::alpakatools::host_buffer<int[]> detIdxModuleTypeMap_;
-   // cms::alpakatools::device_buffer<Device, int[]> detIdxModuleTypeDevice_;
-    //Queue  myqueue;
+    cms::alpakatools::device_buffer<Device, int[]> detIdxModuleTypeDevice_;
+    Queue  myqueue;
   };
 
     Phase2RawToClusterProducer::Phase2RawToClusterProducer(const edm::ParameterSet& iConfig)
@@ -117,16 +118,19 @@ enum WhichModule:int {undef, TwoS ,PS };
       cablingMapToken_(esConsumes<TrackerDetToDTCELinkCablingMap, TrackerDetToDTCELinkCablingMapRcd, edm::Transition::BeginRun>()),
       trackerGeometryToken_(esConsumes<TrackerGeometry, TrackerDigiGeometryRecord, edm::Transition::BeginRun>()),
       trackerTopologyToken_(esConsumes<TrackerTopology, TrackerTopologyRcd, edm::Transition::BeginRun>()),
+      
 	// outputToken_(produces())
 	//outputToken_{produces<Phase2RawToCluster::ClusterPropHostCollection>()}
 	outputToken_{ produces()},
-	detIdxModuleTypeMap_{cms::alpakatools::make_host_buffer<int[], Platform>((MAX_DTC_ID - MIN_DTC_ID) * SLINKS_PER_DTC * CICs_PER_SLINK )} //,
+	//
+//	detIdxModuleTypeMap_{cms::alpakatools::make_host_buffer<int[], Platform>((MAX_DTC_ID - MIN_DTC_ID) * SLINKS_PER_DTC * CICs_PER_SLINK )} //,
 //	detIdxModuleTypeDevice_{cms::alpakatools::make_device_buffer<int[], Device>((MAX_DTC_ID - MIN_DTC_ID) * SLINKS_PER_DTC * CICs_PER_SLINK )}
+    
        //		.template deviceProduces<Phase2RawToCluster::ClusterPropDeviceCollection, Phase2RawToCluster::ClusterPropHostCollection>() }
 // outputToken_{ produces<Phase2RawToCluster::ClusterPropHostCollection>() }
 	{
-//		detIdxModuleTypeMap_ = cms::alpakatools::make_host_buffer<int[]>(myqueue, (MAX_DTC_ID - MIN_DTC_ID) * SLINKS_PER_DTC * CICs_PER_SLINK );
-//		detIdxModuleTypeDevice_ = cms::alpakatools::make_device_buffer<int[]>(myqueue ,(MAX_DTC_ID - MIN_DTC_ID) * SLINKS_PER_DTC * CICs_PER_SLINK );
+		detIdxModuleTypeMap_ = cms::alpakatools::make_host_buffer<int[]>(myqueue, (MAX_DTC_ID - MIN_DTC_ID) * SLINKS_PER_DTC * CICs_PER_SLINK );
+		detIdxModuleTypeDevice_ = cms::alpakatools::make_device_buffer<int[]>(myqueue ,(MAX_DTC_ID - MIN_DTC_ID) * SLINKS_PER_DTC * CICs_PER_SLINK );
 
 	}
 
@@ -258,7 +262,7 @@ enum WhichModule:int {undef, TwoS ,PS };
           // wait for the copy to finish before launching your kernel
         alpaka::wait(queue);
 
-//	launchUnpacker(queue,rawColl)
+	launchUnpacker(queue,rawColl)
 
 /*
 	// (a) Ask the map for every DTCELinkId it knows
