@@ -18,8 +18,13 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
   // Future kernels:
   // void launchPSUnpackerKernel(...);
   // void launchClusterizer(...);
-
-}
+  void launchUnpacker(
+        Queue& queue,
+        cms::alpakatools::device_buffer<Device, unsigned char[]> rawdatabuff,
+        cms::alpakatools::device_buffer<Device, size_t[]> sizedatabuff,
+        cms::alpakatools::device_buffer<Device, size_t[]> offsetdatabuff,
+	 cms::alpakatools::device_buffer<Device, int[]> inmap);
+       	}
 
 #endif  // EventFilter_Phase2TrackerRawToDigi_RawToClusterAlgo_h
 

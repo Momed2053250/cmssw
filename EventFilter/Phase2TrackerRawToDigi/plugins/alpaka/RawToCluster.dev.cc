@@ -8,7 +8,7 @@
 #include "EventFilter/Phase2TrackerRawToDigi/interface/SensorHybrid.h"
 #include "EventFilter/Phase2TrackerRawToDigi/interface/Phase2TrackerSpecifications.h"
 #include "EventFilter/Phase2TrackerRawToDigi/interface/Phase2DAQFormatSpecification.h"
-
+#include "DataFormats/FEDRawData/interface/FEDRawData.h"
 // Calibration algorithms header
 //#include "RecoLocalCalo/HGCalRecAlgos/plugins/alpaka/HGCalRecHitCalibrationAlgorithms.h"
 
@@ -33,83 +33,151 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
     }
   };
   */
+	ALPAKA_FN_ACC uint32_t readLine(const unsigned char* dataPtr, int lineIdx){
+ 	   uint32_t line = (static_cast<uint32_t>(dataPtr[lineIdx]) << 24) | 
+        	            (static_cast<uint32_t>(dataPtr[lineIdx + 1]) << 16) | 
+                	    (static_cast<uint32_t>(dataPtr[lineIdx + 2]) << 8) | 
+                   	 (static_cast<uint32_t>(dataPtr[lineIdx + 3]));
 
+	    return line;                                
+	}
+//
+ALPAKA_FN_ACC int getLineIndex(int channelIdx, unsigned int iline){
+    return channelIdx + N_BYTES_PER_WORD + iline * N_BYTES_PER_WORD; 
+}
+ALPAKA_FN_ACC void readPayload(uint32_t* clusterWords,
+                                       uint32_t* lines,
+                                       int numClusters,
+                                       int& nAvailableBits,
+                                       int& iLine,
+                                       int& bitsToRead,
+                                       int& nFullClusters,
+                                       int clusterBits,
+                                       int clusterWordMask,
+                                       bool isPixelCluster,
+                                       int nFullClustersStrips = 0
+                                       )
+{
+    for (int icluster = 0; icluster < numClusters; icluster++) {
+        if (nAvailableBits >= clusterBits) {
+            // calculate the shift
+            int shift = N_BITS_PER_WORD - bitsToRead - (nFullClusters + 1) * clusterBits;
+            // take into account bits already used for the last strip cluster
+            if (icluster == 0 && isPixelCluster) shift -= (nFullClustersStrips)* SS_CLUSTER_BITS;
+            nFullClustersStrips = 0; // reset
+
+            // mask, and save cluster word
+            clusterWords[icluster] = (lines[iLine] >> shift) & clusterWordMask;
+            // update available bits and number of full clusters from this line
+            nAvailableBits -= clusterBits;
+            nFullClusters++;
+
+            if (nAvailableBits == 0) {
+                iLine++;
+                nAvailableBits = N_BITS_PER_WORD;
+                nFullClusters = 0;
+                bitsToRead = 0;
+            }
+        } else {
+      /*
+       // get the remaining bits from the current line. first create the mask, then mask
+       //     int nMask = createMask(nAvailableBits);
+        //    uint16_t wordLeft = lines[iLine] & nMask;
+
+            // create mask for next line
+            bitsToRead = clusterBits - nAvailableBits;
+          //  int nextMask = createMask(bitsToRead);
+            // shift and mask
+         //   uint16_t wordRight = (lines[iLine + 1] >> (N_BITS_PER_WORD - bitsToRead)) & nextMask;
+
+            // compose the full cluster word
+            clusterWords[icluster] = (wordLeft << bitsToRead) | wordRight;
+
+            // re-set n available bits
+            nAvailableBits = N_BITS_PER_WORD - bitsToRead;
+            // advance by one line and re-init the number of complete clusters read from the current line
+            iLine++;
+            nFullClusters = 0;
+       */
+	    }
+    }
+}
+	ALPAKA_FN_ACC uint16_t getOffsetForChannel (unsigned int iChannel, uint32_t* offsetWords){
+
+	//TODO:: optimize
+	if (iChannel % 2 == 0) {
+	// extract the lower 16 bits by masking with 0xFFFF
+		return static_cast<uint16_t>(offsetWords[iChannel/2] & 0xFFFF);
+	}
+	else {
+		// extract the upper 16 bits by shifting right by 16
+	return static_cast<uint16_t>(offsetWords[(iChannel -1)/2] >> 16) ;
+	}	
+	}
 // writing the kernals 
   struct Unpacker {
-          template <typename Acc, typename InMap, typename RawDataBuff>
+          template <typename Acc, typename InMap, typename RawDataBuff, typename sizedatabuff, typename offsetdatabuff>
           ALPAKA_FN_ACC void operator()(Acc const& acc,
-                                        RawDataBuff in, InMap const& detIdxModuleTypeMap
+                                        RawDataBuff in, sizedatabuff sizes, offsetdatabuff offsets,  InMap const& detIdxModuleTypeMap
                                         ) const {
 		  for (auto frdId : cms::alpakatools::independent_groups(acc, (MAX_DTC_ID - MIN_DTC_ID) * SLINKS_PER_DTC)){
 				  
 				  
 
 
-		  			 if (in[frdId].size() > 0) 
-        {/*
-          const unsigned char* dataPtr = fedData.data();
+		  			 if (sizes[frdId] > 0) 
+        {
+
+          const unsigned char* dataPtr = in;
           
           // read the header
-          std::vector<uint32_t> headerWords;
+       /*   std::vector<uint32_t> headerWords;
           for (size_t i = 0; i < HEADER_N_LINES*N_BYTES_PER_WORD; i += N_BYTES_PER_WORD) // Read 4 bytes (32 bits) at a time
           {
             // Extract 4 bytes (32 bits) and pack them into a uint32_t word
             headerWords.push_back(readLine(dataPtr, i));
           }
           theHeader.setValue(headerWords);
-    
+    */
           // read the offsets: each 32 bit word contains two offset words of 16 bit each
-          std::vector<uint32_t> offsetWords;
-          size_t nOffsetsLines = OFFSET_BITS * CICs_PER_SLINK / N_BITS_PER_WORD;
+          uint32_t* offsetWords = nullptr;
+	  if constexpr (!requires_single_thread_per_block_v<Acc>){
+	  	offsetWords = alpaka::getDynSharedMem<uint32_t>(acc);
+	  }
+	else 
+	{ //Only supported for non CPU  accelerators   TODO:: FIx for the CPU 
+		
+	}
+      	size_t nOffsetsLines = OFFSET_BITS * CICs_PER_SLINK / N_BITS_PER_WORD;
           size_t initByte = HEADER_N_LINES*N_BYTES_PER_WORD;
-          size_t endByte = (nOffsetsLines-1)*N_BYTES_PER_WORD + initByte; // -1 because we only need the starting i of the line
-  
-          for (size_t i = initByte; i <= endByte; i += N_BYTES_PER_WORD) // Read 4 bytes (32 bits) at a time
-            offsetWords.push_back(readLine(dataPtr, i));
-          theOffsets.setValue(offsetWords);
-          
+         // size_t endByte = (nOffsetsLines-1)*N_BYTES_PER_WORD + initByte; // -1 because we only need the starting i of the line
+          for (auto k : cms::alpakatools::independent_group_elements(acc, nOffsetsLines)){
+	  auto i = initByte + k * N_BYTES_PER_WORD;
+	  offsetWords[k] = readLine(dataPtr, i);
+	  } 
+       	//   theOffsets.setValue(offsetWords);
+      	alpaka::syncBlockThreads(acc);
+
           // now read the payload (channel header + clusters)
           // all channel headers should be there, even if 0 clusters are found
           // the loop is not on the actual channel number, as in the ClusterToRaw conversion each channel is split by CIC0_CIC1
           // NOTE: we need to save into the Phase2TrackerCluster1D collection two "channels" at the time 
           // in order to get all the clusters from the same lpGBT and fill them once at the end
-          std::vector<Phase2TrackerCluster1D> thisChannel1DSeedClusters, thisChannel1DCorrClusters;
+        //  std::vector<Phase2TrackerCluster1D> thisChannel1DSeedClusters, thisChannel1DCorrClusters;
           for (unsigned int iChannel = 0; iChannel < CICs_PER_SLINK; iChannel++)
           {
             // clear the collection if iChannel is even
             if (iChannel%2==0){
-              thisChannel1DSeedClusters.clear();
-              thisChannel1DCorrClusters.clear();
+         //     thisChannel1DSeedClusters.clear();
+         //     thisChannel1DCorrClusters.clear();
             }  
   
-            // retrieve the module type: 
-            // first we need to construct the DTCElinkId object ## dtc_id, gbtlink_id, elink_id
-            // to get the gbt_id we should reverse what is done in the packer function,
-            // where clusters from channel X are split into 2*i and 2*i+1 based on being from CIC0 or CIC1
-            unsigned int gbt_id = iSlink * MODULES_PER_SLINK + std::div(iChannel, 2).quot;
-            DTCELinkId thisDTCElinkId(dtcID, gbt_id, 0);
-  
-            int thisDetId = -1;
-            bool is2SModule = false;
-            // then pass it to the map to get the detid
-            if (cablingMap_->knowsDTCELinkId(thisDTCElinkId))
-            {
-              auto possibleDetIds = cablingMap_->dtcELinkIdToDetId(thisDTCElinkId); // this returns a pair, detid will be an uint32_t (not a DetId)
-              thisDetId = possibleDetIds->second;
-              LogTrace("RawToClusterProducer") << "slink: " << iSlink << "\tiDTC: " << unsigned(dtcID) << "\tiGBT: " << unsigned(gbt_id) 
-                                               << "\tielink: " << unsigned(0) << "\t -> detId:" << thisDetId; 
-              // check is 2S or PS 
-              is2SModule = trackerGeometry_->getDetectorType( stackMap_[thisDetId].first) == TrackerGeometry::ModuleType::Ph2SS;
-            }
-            else {
-              LogTrace("RawToClusterProducer") << "slink: " << iSlink << "\tiDTC: " << unsigned(dtcID) << "\tiGBT: " << unsigned(gbt_id) 
-                                               << " -> not connected? " ; 
-              continue;
-            }
-  
-            // find the channel offset
+            // retrieve the module type:  	TODO: 	check the logic if debug 
+     		int is2SModule = detIdxModuleTypeMap[frdId+iChannel];
+		
+     	    // find the channel offset
             int initial_offset = (HEADER_N_LINES + MODULES_PER_SLINK) * N_BYTES_PER_WORD;
-            int idx = initial_offset + theOffsets.getOffsetForChannel(iChannel) * N_BYTES_PER_WORD;
+            int idx = initial_offset + getOffsetForChannel(iChannel, offsetWords) * N_BYTES_PER_WORD;
             
             // get the channel header and unpack it
             uint32_t headerWord = readLine(dataPtr, idx);
@@ -122,30 +190,38 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
             unsigned int nLines = (numStripClusters + numPixelClusters > 0) ? 
                                    int((numStripClusters * SS_CLUSTER_BITS + numPixelClusters * PX_CLUSTER_BITS)/ N_BITS_PER_WORD) + 1 : 0;
   
-            if (numStripClusters + numPixelClusters > 0 ){
+ /*           if (numStripClusters + numPixelClusters > 0 ){
               LogTrace("RawToClusterProducer") << "\tchannel " << iChannel << "\theader: " << std::bitset<N_BITS_PER_WORD>(headerWord) 
                                                << "\tn strip clusters = " << numStripClusters 
                                                << "\tn pixel clusters = " << numPixelClusters 
                                                << " (n lines = " << nLines << ")";
             }  
-            
-            // first retrieve all lines filled with clusters
-            std::vector<uint32_t> lines;
-            for (unsigned int iline = 0; iline < nLines; iline++) {
-              lines.push_back(readLine(dataPtr, getLineIndex(idx, iline)));
-            }        
-            if ( lines.size() != nLines) {
+   */         
+            // first retrieve all lines filled with clustersi
+	    uint32_t* lines = nullptr;
+          if constexpr (!requires_single_thread_per_block_v<Acc>){
+                lines = alpaka::getDynSharedMem<uint32_t>(acc);
+          }
+        else
+        { //Only supported for non CPU  accelerators   TODO:: FIx for the CPU
+
+        }
+          for (auto k : cms::alpakatools::independent_group_elements(acc, nLines)){
+          lines[k] = readLine(dataPtr, getLineIndex(idx, k));
+          }
+        alpaka::syncBlockThreads(acc);
+         /*   if ( lines.size() != nLines) {
               edm::LogError("RawtoClusterProducer") << "Numbers of stored lines does not match with size of lines to be read!";
               return;
             }  
-    
+    */
             // first retrieve the cluster words
             // this was uint16, check if can be changed back 
-            std::vector<uint32_t> stripClustersWords;
-            stripClustersWords.resize(numStripClusters);
+     //       std::vector<uint32_t> stripClustersWords;
+      //      stripClustersWords.resize(numStripClusters);
   
-            std::vector<uint32_t> pixelClustersWords;
-            pixelClustersWords.resize(numPixelClusters);
+      //      std::vector<uint32_t> pixelClustersWords;
+      //      pixelClustersWords.resize(numPixelClusters);
       
             // create groups of 14 (17) bits for 2S (PS) clusters, joining consecutive lines if needed
             int nAvailableBits = N_BITS_PER_WORD;
@@ -153,10 +229,51 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
             int bitsToRead = 0;
             int nFullClustersStrip = 0;
             int nFullClustersPix = 0;
-            
-            readPayload(stripClustersWords, lines, numStripClusters, nAvailableBits, iLine, bitsToRead, nFullClustersStrip, SS_CLUSTER_BITS, SS_CLUSTER_WORD_MASK, false );
-            readPayload(pixelClustersWords, lines, numPixelClusters, nAvailableBits, iLine, bitsToRead, nFullClustersPix, PX_CLUSTER_BITS, PX_CLUSTER_WORD_MASK, true, nFullClustersStrip );
-            
+            for (auto k : cms::alpakatools::independent_group_elements(acc, numStripClusters)){
+          lines[k] = readLine(dataPtr, getLineIndex(idx, k));
+          }
+	    if (is2SModule) {
+		uint32_t* stripClusterWords = nullptr;
+          if constexpr (!requires_single_thread_per_block_v<Acc>){
+                stripClusterWords = alpaka::getDynSharedMem<uint32_t>(acc);
+          }
+        else
+        { //Only supported for non CPU  accelerators   TODO:: FIx for the CPU
+
+        }
+			if (cms::alpakatools::once_per_block(acc)){
+			readPayload(stripClusterWords, lines, numStripClusters, nAvailableBits, iLine, bitsToRead, nFullClustersStrip, SS_CLUSTER_BITS, SS_CLUSTER_WORD_MASK, false );
+			
+			}
+	    } 
+	    else {
+	    uint32_t* stripClusterWords = nullptr;
+          if constexpr (!requires_single_thread_per_block_v<Acc>){
+                stripClusterWords = alpaka::getDynSharedMem<uint32_t>(acc);
+          }
+        else
+        { //Only supported for non CPU  accelerators   TODO:: FIx for the CPU
+
+        }
+uint32_t* pixelClusterWords = nullptr;
+          if constexpr (!requires_single_thread_per_block_v<Acc>){
+                pixelClusterWords = alpaka::getDynSharedMem<uint32_t>(acc);
+          }
+        else
+        { //Only supported for non CPU  accelerators   TODO:: FIx for the CPU
+
+        }
+if (cms::alpakatools::once_per_block(acc)){
+            readPayload(stripClusterWords, lines, numStripClusters, nAvailableBits, iLine, bitsToRead, nFullClustersStrip, SS_CLUSTER_BITS, SS_CLUSTER_WORD_MASK, false );
+            readPayload(pixelClusterWords, lines, numPixelClusters, nAvailableBits, iLine, bitsToRead, nFullClustersPix, PX_CLUSTER_BITS, PX_CLUSTER_WORD_MASK, true, nFullClustersStrip );
+	    }
+	    }
+
+// TODOs: (after unpacked)
+// 1. Need to define an output SoA with two columns for seed clus and corr clusters with the max size numclus * channels * dtcs * slinks = 128 *36 *~800 * ~4 
+// 2. Need to define a global atomic which will decide where a block write out the results in the output soA 
+// 3. Read payload is done and after reading just use these dynmem and send them to unpackers   
+/*
             // unpack the cluster words and create Phase2TrackerCluster1D objects
             int count_clusters = 0;
             if (is2SModule) {
@@ -208,11 +325,11 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
                 spcc.push_back(*it);
               }
             }
-    
+	    */ 
           } // end loop on channels for this dtc
-        */
+   
 	} // end fed data size > 0
-
+		 	  
 	  } // independatn group elements 
 	  } // call operator  
   };
@@ -221,7 +338,9 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
 
 
-  // Kernel for 2S modules: unpack only stripClustersWords into (x,y,width)
+  // Kernel for 2S modules: unpack only stripClustersWords into (x,y,width) TODO :: chabnge the unpackers from kernal to functions (remove the operator and like the functions on top )
+  // 2. move uniform elements outside the fucniton now 
+  // 3. in the previous todo we added the reserved places before the unpacking and this needs to write the output to the reserved the places : 
 	struct S2UnpackerKernel {
 	  template <typename Acc, typename InView, typename OutView>
 	  ALPAKA_FN_ACC void operator()(Acc const& acc,
@@ -254,20 +373,19 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 	  auto workDiv = cms::alpakatools::make_workdiv<Acc1D>(blocks, threadsPerBlock);
 	  alpaka::exec<Acc1D>(queue, workDiv, S2UnpackerKernel{}, devStripPixel.view(), devClusterProp.view());
 	}
-
-      // unpacker kernal launch
-      template <typename InMap, typename RawDataBuff> 
        void launchUnpacker(
-	Queue& queue,
-	RawDataBuff rawdatabuff,
-	InMap inmap) {
-	       const uint32_t threadsPerBlock = 128;
-	       const uint32_t blocks = (MAX_DTC_ID - MIN_DTC_ID) * SLINKS_PER_DTC ;
-	       auto workDiv = cms::alpakatools::make_workdiv<Acc1D>(blocks, threadsPerBlock);
-          alpaka::exec<Acc1D>(queue, workDiv, Unpacker{}, rawdatabuff, inmap);
+        Queue& queue,
+        cms::alpakatools::device_buffer<Device, unsigned char[]> rawdatabuff,
+	cms::alpakatools::device_buffer<Device, size_t[]> sizedatabuff,
+	cms::alpakatools::device_buffer<Device, size_t[]> offsetdatabuff,
+        cms::alpakatools::device_buffer<Device, int[]> inmap) {
+               const uint32_t threadsPerBlock = 128;
+               const uint32_t blocks = (MAX_DTC_ID - MIN_DTC_ID) * SLINKS_PER_DTC ;
+               auto workDiv = cms::alpakatools::make_workdiv<Acc1D>(blocks, threadsPerBlock);
+          alpaka::exec<Acc1D>(queue, workDiv, Unpacker{}, rawdatabuff.data(), sizedatabuff.data(), offsetdatabuff.data(), inmap.data());
        }
 
-  /* NEEED TO BE RECHECKED ONCE THE 2S MODEL WORKS THIS WAY
+      /* NEEED TO BE RECHECKED ONCE THE 2S MODEL WORKS THIS WAY
 
 // Kernel for PS modules: unpack both strip **and** pixel words
   struct PSUnpackerKernel {
