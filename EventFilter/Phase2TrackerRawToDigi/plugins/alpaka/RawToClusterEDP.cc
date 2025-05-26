@@ -79,7 +79,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
   public:
     explicit Phase2RawToClusterProducer(const edm::ParameterSet&);
     static void fillDescriptions(edm::ConfigurationDescriptions&);
-// enumaration  
+// enumaration // undef can happern ? 
 enum WhichModule:int {undef, TwoS ,PS };
   private:
     void produce(device::Event&, device::EventSetup const&) override;
@@ -104,6 +104,7 @@ enum WhichModule:int {undef, TwoS ,PS };
     // DTC*slink *channel -> DetIdx
     Queue myqueue;
     Device devAcc = alpaka::getDevByIdx(Platform{}, 0u);
+    // later check if the buffer can be changed to soas 
     cms::alpakatools::host_buffer<int[]> detIdxModuleTypeMap_;
     cms::alpakatools::device_buffer<Device, int[]> detIdxModuleTypeDevice_;
     

@@ -103,7 +103,7 @@ ALPAKA_FN_ACC void readPayload(uint32_t* clusterWords,
     }
 }
 	ALPAKA_FN_ACC uint16_t getOffsetForChannel (unsigned int iChannel, uint32_t* offsetWords){
-
+// see what this part does 
 	//TODO:: optimize
 	if (iChannel % 2 == 0) {
 	// extract the lower 16 bits by masking with 0xFFFF
@@ -241,6 +241,7 @@ ALPAKA_FN_ACC void readPayload(uint32_t* clusterWords,
         { //Only supported for non CPU  accelerators   TODO:: FIx for the CPU
 
         }
+	/// omce per block ??
 			if (cms::alpakatools::once_per_block(acc)){
 			readPayload(stripClusterWords, lines, numStripClusters, nAvailableBits, iLine, bitsToRead, nFullClustersStrip, SS_CLUSTER_BITS, SS_CLUSTER_WORD_MASK, false );
 			
