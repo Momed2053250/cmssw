@@ -57,19 +57,7 @@
 using namespace Phase2TrackerSpecifications;
 using namespace Phase2DAQFormatSpecification;
 using namespace Phase2RawToCluster;
-// just a peaceful timer 
-template<class T> double duration(T t0,T t1)
-{
-  auto elapsed_secs = t1-t0;
-  typedef std::chrono::duration<float> float_seconds;
-  auto secs = std::chrono::duration_cast<float_seconds>(elapsed_secs);
-  return secs.count();
-}
 
-inline std::chrono::time_point<std::chrono::steady_clock> now()
-{
-  return std::chrono::steady_clock::now();
-}
 
 namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
@@ -79,32 +67,33 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
   public:
     explicit Phase2RawToClusterProducer(const edm::ParameterSet&);
     static void fillDescriptions(edm::ConfigurationDescriptions&);
-// enumaration // undef can happern ? 
-enum WhichModule:int {undef, TwoS ,PS };
+	// enumaration declaration for the module types  
+	enum WhichModule:int {undef, TwoS ,PS };
   private:
     void produce(device::Event&, device::EventSetup const&) override;
     void beginRun(edm::Run const&, edm::EventSetup const&) override;
-   //  edm::ESWatcher<HGCalCondSerializableModuleInfoRcd> calibWatcher_;
-  //  edm::ESWatcher<HGCalCondSerializableConfigRcd> configWatcher_;
-  // Token
+  
+    // Tokens
     const edm::EDGetTokenT<FEDRawDataCollection> fedRawDataToken_;
     const edm::ESGetToken<TrackerDetToDTCELinkCablingMap, TrackerDetToDTCELinkCablingMapRcd> cablingMapToken_;
     const edm::ESGetToken<TrackerGeometry, TrackerDigiGeometryRecord> trackerGeometryToken_;
     const edm::ESGetToken<TrackerTopology, TrackerTopologyRcd> trackerTopologyToken_;
-   // edm::EDGetTokenT<Phase2TrackerCluster1DCollectionNew> OutputClusterCollectionToken_;
-    // our new output token
-	   device::EDPutToken<Phase2RawToCluster::ClusterPropSoACollection> outputToken_;
+    //New output token
+    device::EDPutToken<Phase2RawToCluster::ClusterPropSoACollection> outputToken_;
 
-       // cached ES pointers
+    // cached ES pointers
     const TrackerDetToDTCELinkCablingMap* cablingMap_ = nullptr;
     const TrackerGeometry* trackerGeometry_ = nullptr;
     const TrackerTopology* trackerTopology_ = nullptr;
     std::map<int, std::pair<int,int>> stackMap_;
     // make the host buffers 
     // DTC*slink *channel -> DetIdx
+    // Make new queue to access a queue before the produce method 
     Queue myqueue;
+    //Get the available device for memory allocation 
     Device devAcc = alpaka::getDevByIdx(Platform{}, 0u);
-    // later check if the buffer can be changed to soas 
+   
+    // TODO:: check if the buffer can be changed to SoAs 
     cms::alpakatools::host_buffer<int[]> detIdxModuleTypeMap_;
     cms::alpakatools::device_buffer<Device, int[]> detIdxModuleTypeDevice_;
     
@@ -113,30 +102,23 @@ enum WhichModule:int {undef, TwoS ,PS };
     Phase2RawToClusterProducer::Phase2RawToClusterProducer(const edm::ParameterSet& iConfig)
     : stream::EDProducer<>(iConfig),
      fedRawDataToken_(consumes<FEDRawDataCollection>(iConfig.getParameter<edm::InputTag>("fedRawDataCollection"))),
-      cablingMapToken_(esConsumes<TrackerDetToDTCELinkCablingMap, TrackerDetToDTCELinkCablingMapRcd, edm::Transition::BeginRun>()),
-      trackerGeometryToken_(esConsumes<TrackerGeometry, TrackerDigiGeometryRecord, edm::Transition::BeginRun>()),
-      trackerTopologyToken_(esConsumes<TrackerTopology, TrackerTopologyRcd, edm::Transition::BeginRun>()),
-	// outputToken_(produces())
-	//outputToken_{produces<Phase2RawToCluster::ClusterPropHostCollection>()}
-	outputToken_{ produces() },
-	myqueue(devAcc),
-	detIdxModuleTypeMap_{cms::alpakatools::make_host_buffer<int[], Platform>((MAX_DTC_ID - MIN_DTC_ID) * SLINKS_PER_DTC * CICs_PER_SLINK )},	
-	detIdxModuleTypeDevice_{cms::alpakatools::make_device_buffer<int[]>(myqueue,(MAX_DTC_ID - MIN_DTC_ID) * SLINKS_PER_DTC * CICs_PER_SLINK )}
-       //		.template deviceProduces<Phase2RawToCluster::ClusterPropDeviceCollection, Phase2RawToCluster::ClusterPropHostCollection>() }
-// outputToken_{ produces<Phase2RawToCluster::ClusterPropHostCollection>() }
-	{
-	}
-
-//Phase2RawToClusterProducer::~Phase2RawToClusterProducer() 
-//{
-//}
+     cablingMapToken_(esConsumes<TrackerDetToDTCELinkCablingMap, TrackerDetToDTCELinkCablingMapRcd, edm::Transition::BeginRun>()),
+     trackerGeometryToken_(esConsumes<TrackerGeometry, TrackerDigiGeometryRecord, edm::Transition::BeginRun>()),
+     trackerTopologyToken_(esConsumes<TrackerTopology, TrackerTopologyRcd, edm::Transition::BeginRun>()),
+     outputToken_{ produces() },
+     myqueue(devAcc),
+     // Make the Global host and device buffer for each Module Type witht he given size = dtcId * number of slinks * number of channels 
+     detIdxModuleTypeMap_{cms::alpakatools::make_host_buffer<int[], Platform>((MAX_DTC_ID - MIN_DTC_ID) * SLINKS_PER_DTC * CICs_PER_SLINK )},	
+     detIdxModuleTypeDevice_{cms::alpakatools::make_device_buffer<int[]>(myqueue,(MAX_DTC_ID - MIN_DTC_ID) * SLINKS_PER_DTC * CICs_PER_SLINK )}
+    {
+    }
 
   void Phase2RawToClusterProducer::beginRun(
-      edm::Run const&, edm::EventSetup const& iSetup) {
-    cablingMap_     = &iSetup.getData(cablingMapToken_);
-    trackerGeometry_ = &iSetup.getData(trackerGeometryToken_);
-    trackerTopology_ = &iSetup.getData(trackerTopologyToken_);
-
+      	edm::Run const&, edm::EventSetup const& iSetup) {
+    	cablingMap_     = &iSetup.getData(cablingMapToken_);
+    	trackerGeometry_ = &iSetup.getData(trackerGeometryToken_);
+    	trackerTopology_ = &iSetup.getData(trackerTopologyToken_);
+    // Build the stack map 
     stackMap_.clear();
     for (auto const& detUnit : trackerGeometry_->detUnits()) {
       uint32_t rawId = detUnit->geographicalId().rawId();
@@ -149,23 +131,25 @@ enum WhichModule:int {undef, TwoS ,PS };
         stackMap_[stackIdx].second = rawId;
     }
  
+    // Step 1) read for the module type and store the information in a global buffer: we do this in the begin run to just do it once not per event and we store this information in a buffer that can be used later 
+
     // Read one entire DTC (#dtcID), as per the producer logic
-//     unsigned int dtcID = 180; // dtc processing 2S modules
-//     unsigned int dtcID = 209; // dtc processing PS modules
+    
     for (int dtcID = MIN_DTC_ID; dtcID < MAX_DTC_ID + 1; dtcID++){
 
       // read the 4 slinks
+
       for (unsigned int iSlink = 0; iSlink < SLINKS_PER_DTC; iSlink++)
       {
         // as defined in the DAQProducer code
-      //  unsigned totID = iSlink + SLINKS_PER_DTC * (dtcID - 1) + CMSSW_TRACKER_ID ;
+       // unsigned totID = iSlink + SLINKS_PER_DTC * (dtcID - 1) + CMSSW_TRACKER_ID ;
                
        
 	  // now read the payload (channel header + clusters)
           // all channel headers should be there, even if 0 clusters are found
           // the loop is not on the actual channel number, as in the ClusterToRaw conversion each channel is split by CIC0_CIC1
-          // NOTE: we need to save into the Phase2TrackerCluster1D collection two "channels" at the time
           // in order to get all the clusters from the same lpGBT and fill them once at the end
+	  // Loop over the Channels 
                 for (unsigned int iChannel = 0; iChannel < CICs_PER_SLINK; iChannel++)
           {
             // retrieve the module type:
@@ -178,7 +162,9 @@ enum WhichModule:int {undef, TwoS ,PS };
 
             int thisDetId = -1;
             bool is2SModule = false;
-       
+
+	    // Define a detctor index as following : DetIdx = Channel Id + number of channels * sLink Id + number of channels * number of sLinks * DTCId 
+	    // To offset the DTCId to zero we do dtcID - MIN_DTC_ID
        	    auto DetIdx = iChannel + (CICs_PER_SLINK * iSlink) + (CICs_PER_SLINK * SLINKS_PER_DTC * (dtcID - MIN_DTC_ID));
    
 	    // then pass it to the map to get the detid
@@ -186,42 +172,45 @@ enum WhichModule:int {undef, TwoS ,PS };
             {
               auto possibleDetIds = cablingMap_->dtcELinkIdToDetId(thisDTCElinkId); // this returns a pair, detid will be an uint32_t (not a DetId)
               thisDetId = possibleDetIds->second;
+	      // Adding a printout for an intermediate check 
+	      std::cout << "slink is :" << iSlink << "\n" << "DtcID is:" << unsigned(dtcID) << "\n" << " detId is:" << thisdetID << "\n";
+	      //
               LogTrace("RawToClusterProducer") << "slink: " << iSlink << "\tiDTC: " << unsigned(dtcID) << "\tiGBT: " << unsigned(gbt_id)
                                                << "\tielink: " << unsigned(0) << "\t -> detId:" << thisDetId;
-              // check is 2S or PS
+              // check if it is 2S or PS
               is2SModule = trackerGeometry_->getDetectorType( stackMap_[thisDetId].first) == TrackerGeometry::ModuleType::Ph2SS;
+	      // If the slinks iDTC and iGBT are connected then check which module it is 
 		detIdxModuleTypeMap_[DetIdx] = is2SModule ? WhichModule::TwoS : WhichModule::PS;		
 	    }
             else {
               LogTrace("RawToClusterProducer") << "slink: " << iSlink << "\tiDTC: " << unsigned(dtcID) << "\tiGBT: " << unsigned(gbt_id)
                                                << " -> not connected? " ;
+	      // If the slinks iDTC and iGBT are not connected then return an undefined module 
 	      detIdxModuleTypeMap_[DetIdx] = WhichModule::undef;
               continue;
 	    }
 	  } // channel 
-
       } // slink 
     } // det id 
+    
+    // Copy the information to the memory storages we created from the host read veiw to the device buffer store 
   alpaka::memcpy(
-            myqueue,
+            myqueue,				
             detIdxModuleTypeDevice_,        // device destination pointer
             detIdxModuleTypeMap_, // host source pointer
             static_cast< unsigned int>(((MAX_DTC_ID - MIN_DTC_ID) * SLINKS_PER_DTC * CICs_PER_SLINK ) * sizeof(int))  // total bytes to copy
           );
+  } // Begin run 
 
-  }
-
+  // Produce 
   void Phase2RawToClusterProducer::produce(
-      device::Event& iEvent, device::EventSetup const&) {
-    auto queue = iEvent.queue();
-/*
-    // Read digis
-   // auto const& deviceCalibParamProvider = iSetup.getData(calibToken_);
-  //  auto const& deviceConfigParamProvider = iSetup.getData(configToken_);
-  //  auto const& hostDigisIn = iEvent.get(digisToken_);
+       device::Event& iEvent, device::EventSetup const&) {
+       	   
+	  auto queue = iEvent.queue();
 
 
-    
+// -------- The commented section might be used to change from buffer approach to SoAs ------------- For now kept -------//	  
+/*  
     // Create and fill host digi collection 
     // Construct new containers to hold data in host 
    // auto hostDigis = HGCalDigiHostCollection(newSize, queue);
@@ -233,116 +222,69 @@ enum WhichModule:int {undef, TwoS ,PS };
   
     }
 */
-/*
-    	// 1) Load raw FED words into host vector
-  	auto const& rawColl = iEvent.get(fedRawDataToken_);
-  	size_t totalWords = 0;
-  	for (auto const& fedIt : rawColl) {
-    	totalWords += fedIt.second.size() / sizeof(uint32_t);
-  	}
-  	std::vector<uint32_t> rawWords;
-  	rawWords.reserve(totalWords);
-  	for (auto const& fedIt : rawColl) {
-    	auto ptr32 = reinterpret_cast<const uint32_t*>(fedIt.second.data());
-    	auto nWords = fedIt.second.size() / sizeof(uint32_t);
-    	rawWords.insert(rawWords.end(), ptr32, ptr32 + nWords);
-  	}cms::alpakatools::make_host_buffer<Product>()}, product_{buffer_->data()
-*/
 
-	// 1) Build the flat raw‐word array from exactly those FEDs the cabling map knows:
-
+  	// 1) Build the flat raw‐word array:
+	//FED Raw Collection as rowColl holds data fragments from each SLINK for every DTC
 	auto const& rawColl = iEvent.get(fedRawDataToken_);
+	// assert that the size is equal to number of slinks * dtcId 
+	// TODO: Check if this assert is correct or there also has to be the * CICs_PER_SLINK also 
 	assert(rawColl.size() == SLINKS_PER_DTC * (MAX_DTC_ID - MIN_DTC_ID));
-	//store all data in a big vector
+	//store all rawColl in three vecotrs where these will store its data size and an offset
+	//Data: raw byte
 	std::vector<unsigned char> linearData;
-	// TODO change from size)t to uint_32 
+	//size:size of each fragment, and offset: the starting index for each fragment in linearData  
+	// TODO change from size_t to uint_32 : OPTIMIZATION  
 	std::vector<size_t> size(rawColl.size());
 	std::vector<size_t> offset(rawColl.size());
+	// Fill size with the length of each FEDData fragment
 	for (auto j = 0u; j < rawColl.size(); ++j) {
 	auto& data = rawColl.FEDData(j);
 	size.push_back(data.size());
-
 	}
+	// Compute offsets via exclusive scan:
+	// offset[i] = sum of size[0] through size[i-1]
 	std::exclusive_scan(size.begin(), size.end(), offset.begin(), 0);
+	// Reserve total capacity for linearData: last offset + last fragment size
 	linearData.reserve(offset[offset.size()-1] + size[size.size() - 1]);
-	 unsigned char* start = linearData.data();
+	// Make a raw pointer to the beggining of the LinearData
+	unsigned char* start = linearData.data();
+	// Copy each fragment into linearData at its computed offset
 	for (auto j = 0u; j < rawColl.size(); ++j) {
         auto& data = rawColl.FEDData(j);
         std::memcpy(start + offset[j], data.data(), data.size() );
-
         }
-
-	// rewmane the buffers 	
-    auto hostview = cms::alpakatools::make_host_view<unsigned char>(linearData.data(), static_cast<long unsigned int>(linearData.size()));
-	auto devbuffer = cms::alpakatools::make_device_buffer<unsigned char[]>(queue, static_cast<long unsigned int>(linearData.size()));
+	// Make memory allocations to veiw these data from the CPU and copy them inot a buffer in GPU 
+        auto linerData_HostView = cms::alpakatools::make_host_view<unsigned char>(linearData.data(), static_cast<long unsigned int>(linearData.size()));
+	auto linerData_DevBuffer = cms::alpakatools::make_device_buffer<unsigned char[]>(queue, static_cast<long unsigned int>(linearData.size()));
 	alpaka::memcpy(
             queue,
-            devbuffer,        // device destination pointer
-            hostview , // host source pointer
+            linearData_DevBuffer,        // device destination pointer
+            linearData_HostVeiw, // host source pointer
             static_cast< unsigned int>( linearData.size() )  // total bytes to copy
           ); 
-	    auto sizeview = cms::alpakatools::make_host_view<size_t>(size.data(), static_cast<long unsigned int>(size.size()));
-        auto sizeDevBuff = cms::alpakatools::make_device_buffer<size_t[]>(queue, static_cast<long unsigned int>(size.size()));
+	auto size_HostView = cms::alpakatools::make_host_view<size_t>(size.data(), static_cast<long unsigned int>(size.size()));
+        auto size_DevBuffer = cms::alpakatools::make_device_buffer<size_t[]>(queue, static_cast<long unsigned int>(size.size()));
         alpaka::memcpy(
             queue,
-            sizeDevBuff,        // device destination pointer
-            sizeview , // host source pointer
+            size_DevBuffer,        // device destination pointer
+            size_HostView , // host source pointer
             static_cast< unsigned int>( size.size() )  // total bytes to copy
           );
-	    auto offsetview = cms::alpakatools::make_host_view<size_t>(offset.data(), static_cast<long unsigned int>(offset.size()));
-        auto offsetDevBuff = cms::alpakatools::make_device_buffer<size_t[]>(queue, static_cast<long unsigned int>(offset.size()));
+	auto offset_HostView = cms::alpakatools::make_host_view<size_t>(offset.data(), static_cast<long unsigned int>(offset.size()));
+        auto offset_DevBuffer = cms::alpakatools::make_device_buffer<size_t[]>(queue, static_cast<long unsigned int>(offset.size()));
         alpaka::memcpy(
             queue,
-            offsetDevBuff,        // device destination pointer
-            offsetview , // host source pointer
+            offset_DevBuffer,        // device destination pointer
+            offset_HostView , // host source pointer
             static_cast< unsigned int>( offset.size() )  // total bytes to copy
           );
-          // wait for the copy to finish before launching your kernel
+        // wait for the copy to finish before launching kernels
         alpaka::wait(queue);
 
+	// Launch the kernals 
 	launchUnpacker(queue, devbuffer, sizeDevBuff, offsetDevBuff ,detIdxModuleTypeDevice_);
-
+// ----------------------------Commented section kept for later stages -------------------------//
 /*
-	// (a) Ask the map for every DTCELinkId it knows
-	auto dtcLinkIds = cablingMap_->getKnownDTCELinkIds();
-
-	// (b) Turn each DTCELinkId into a unique FED ID
-	std::vector<int> fedIds;
-	fedIds.reserve(dtcLinkIds.size());
-	for (auto const& linkId : dtcLinkIds) {
-	  // extract the DTC number (1…MAX_DTC_ID) and the S-link index (0…SLINKS_PER_DTC-1)
-	  unsigned dtcId     = linkId.dtc_id();
-	  unsigned slinkIdx  = linkId.gbtlink_id();
-
-	  int fedId = slinkIdx
-	            + SLINKS_PER_DTC * (dtcId - 1)
-	            + CMSSW_TRACKER_ID;
-	  fedIds.push_back(fedId);
-	}
-
-	// sort+unique so we don’t double-count any
-	std::sort(fedIds.begin(), fedIds.end());
-	fedIds.erase(std::unique(fedIds.begin(), fedIds.end()), fedIds.end());
-
-	// (c) First pass: count total 32-bit words
-	size_t totalWords = 0;
-	for (int fedId : fedIds) {
-	  auto const& fed = rawColl.FEDData(fedId);
-	  totalWords += fed.size() / sizeof(uint32_t);
-	}
-
-	// (d) Reserve and fill the flat word array
-	std::vector<uint32_t> rawWords;
-	rawWords.reserve(totalWords);
-
-	for (int fedId : fedIds) {
-	  auto const& fed = rawColl.FEDData(fedId);
-	  auto ptr32  = reinterpret_cast<const uint32_t*>(fed.data());
-	  auto nWords = fed.size() / sizeof(uint32_t);
-	  rawWords.insert(rawWords.end(), ptr32, ptr32 + nWords);
-	}
-
-
   	// 2) Fill host input SOA
   	auto hostStripPixel = StripPixelHostCollection(totalWords, queue);
   	for (size_t i = 0; i < totalWords; ++i) {
@@ -366,11 +308,6 @@ enum WhichModule:int {undef, TwoS ,PS };
 //cms::alpakatools::CopyToDevice(queue, devStripPixel, hostStripPixel);
 	alpaka::wait(queue);
 
-	// 4) Launch 2S unpacker
-   	launchS2UnpackerKernel(queue, devStripPixel, devClusterProp, totalWords);
-	alpaka::wait(queue);
-
-
 	  // 5) Allocate a host-side SOA for the output and memcpy the result back
 //	  ClusterPropHostCollection 
 	 Phase2RawToCluster::ClusterPropSoACollection  hostClusterProp(totalWords, queue);
@@ -382,6 +319,9 @@ enum WhichModule:int {undef, TwoS ,PS };
 	  );
 	  // wait for the device→host copy to complete
 	  alpaka::wait(queue);
+
+
+	  // -------------------------------------------------- iEvent.emplace -----------------------------------//
 	  // finally, put it into the event
 	  iEvent.emplace(outputToken_, std::move(hostClusterProp));
 	// call the unoacker kernal 
