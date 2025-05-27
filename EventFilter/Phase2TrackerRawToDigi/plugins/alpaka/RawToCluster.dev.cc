@@ -33,6 +33,11 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 	}
 	};
 	*/
+
+	// create masking 
+	ALPAKA_FN_ACC int createMask(int nBits) {
+    return (1 << nBits) - 1;
+}
 	// Read a 32bit word from a byte buffer
 	ALPAKA_FN_ACC uint32_t readLine(const unsigned char* dataPtr, int lineIdx){
 		uint32_t line = (static_cast<uint32_t>(dataPtr[lineIdx]) << 24) | 
@@ -85,17 +90,17 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 					bitsToRead = 0;
 				}
 			} else {
-				//TODO: Handle clusters spanning across two 32bit words 
-				/*
+
+				//Handle clusters spanning across two 32bit words 
 				// get the remaining bits from the current line. first create the mask, then mask
-				//     int nMask = createMask(nAvailableBits);
-				//    uint16_t wordLeft = lines[iLine] & nMask;
+				int nMask = createMask(nAvailableBits);
+				uint16_t wordLeft = lines[iLine] & nMask;
 
 				// create mask for next line
 				bitsToRead = clusterBits - nAvailableBits;
-				//  int nextMask = createMask(bitsToRead);
+				int nextMask = createMask(bitsToRead);
 				// shift and mask
-				//   uint16_t wordRight = (lines[iLine + 1] >> (N_BITS_PER_WORD - bitsToRead)) & nextMask;
+				uint16_t wordRight = (lines[iLine + 1] >> (N_BITS_PER_WORD - bitsToRead)) & nextMask;
 
 				// compose the full cluster word
 				clusterWords[icluster] = (wordLeft << bitsToRead) | wordRight;
@@ -105,7 +110,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 				// advance by one line and re-init the number of complete clusters read from the current line
 				iLine++;
 				nFullClusters = 0;
-				*/
+
 			}
 		}
 	}
