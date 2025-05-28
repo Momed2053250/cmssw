@@ -9,8 +9,7 @@
 #include "EventFilter/Phase2TrackerRawToDigi/interface/Phase2TrackerSpecifications.h"
 #include "EventFilter/Phase2TrackerRawToDigi/interface/Phase2DAQFormatSpecification.h"
 #include "DataFormats/FEDRawData/interface/FEDRawData.h"
-// Calibration algorithms header
-//#include "RecoLocalCalo/HGCalRecAlgos/plugins/alpaka/HGCalRecHitCalibrationAlgorithms.h"
+#include "EventFilter/Phase2TrackerRawToDigi/interface/TrackerHeader.h"
 
 namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
@@ -18,26 +17,11 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 	using namespace Phase2RawToCluster;
 	using namespace Phase2TrackerSpecifications;
 	using namespace Phase2DAQFormatSpecification;
-	// a class kernal example 
-	/*  class CalibrationKernel_digisToRecHits {
-	    public:
-
-	    template <typename TAcc>
-
-	    ALPAKA_FN_ACC void operator()(TAcc const& acc, StripPixelDeviceCollection::View strippixel, StripPixelOutputDeviceCollection::View output ) const {
-	// dummy example
-	for (auto index : elements_with_stride(acc, strippixel.metadata().size())) {
-	output[index].stripClustersWords() = strippixel[index].stripClusterWords();
-	output[index].pixelClustersWords() = strippixel[index].pixelClusterWords();
-	}
-	}
-	};
-	*/
 
 	// create masking 
 	ALPAKA_FN_ACC int createMask(int nBits) {
-    return (1 << nBits) - 1;
-}
+		return (1 << nBits) - 1;
+	}
 	// Read a 32bit word from a byte buffer
 	ALPAKA_FN_ACC uint32_t readLine(const unsigned char* dataPtr, int lineIdx){
 		uint32_t line = (static_cast<uint32_t>(dataPtr[lineIdx]) << 24) | 
@@ -54,7 +38,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
 	// Extract cluster words across multiple lines with bit-packing
 	ALPAKA_FN_ACC void readPayload(uint32_t* clusterWords,   // output array for extracted words
-			uint32_t* lines,                         // input buffer of 32‑bit words
+			uint32_t* lines,                         // input buffer of 32-bit words
 			int numClusters,
 			int& nAvailableBits,                    // bits left in current "line"
 			int& iLine,                             // current line index
@@ -152,15 +136,24 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 						// Pointer to the start of fragment data
 						const unsigned char* dataPtr = in;
 
-						// read the header MAYBE A TODO MAYBE NOT 
-						/*   std::vector<uint32_t> headerWords;
-						     for (size_t i = 0; i < HEADER_N_LINES*N_BYTES_PER_WORD; i += N_BYTES_PER_WORD) // Read 4 bytes (32 bits) at a time
-						     {
-						// Extract 4 bytes (32 bits) and pack them into a uint32_t word
-						headerWords.push_back(readLine(dataPtr, i));
+						// read the header
+
+						uint32_t* headerWords = nullptr;
+						if constexpr (!requires_single_thread_per_block_v<Acc>){
+							headerWords = alpaka::getDynSharedMem<uint32_t>(acc);
 						}
-						theHeader.setValue(headerWords);
-						*/
+						else
+						{ //Only supported for non CPU  accelerators   TODO:: FIx for the CPU
+
+						}
+						size_t nHeaderLines = HEADER_N_LINES;
+						for (auto k : cms::alpakatools::independent_group_elements(acc, nHeaderLines)){
+							auto i = k * N_BYTES_PER_WORD;
+							headerWords[k] = readLine(dataPtr, i);
+						}
+						alpaka::syncBlockThreads(acc);
+						// Print out for intermediate check
+						printf("headerWords[0] = %u\n", headerWords[0]);
 
 						// read the offsets into shared memory: each 32 bit word contains two offset words of 16 bit each
 						// shared buffer for channel offsets: dynamic shared memory
@@ -181,6 +174,8 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 						} 
 						//   theOffsets.setValue(offsetWords);
 						alpaka::syncBlockThreads(acc);
+						// Print out for intermediate check 
+						printf("offsetWords[0] = %u\n", offsetWords[0]);
 
 						// now read the payload (channel header + clusters)
 						// all channel headers should be there, even if 0 clusters are found
