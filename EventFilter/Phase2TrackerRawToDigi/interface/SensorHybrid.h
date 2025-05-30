@@ -12,11 +12,15 @@ class SensorHybrid
 {
     private:
 
-        std::vector<Phase2TrackerCluster1D*> get_clusters_on_cic(edmNew::DetSetVector<Phase2TrackerCluster1D>::const_iterator clusterIterator, const bool& cic_id, const TrackerGeometry& trackerGeometry, const int internal_id) 
+        std::vector<Phase2TrackerCluster1D*> get_clusters_on_cic(edmNew::DetSetVector<Phase2TrackerCluster1D>::const_iterator clusterIterator, const bool clusters_exist, const bool& cic_id, const TrackerGeometry& trackerGeometry, const int internal_id) 
         {
             using namespace Phase2TrackerSpecifications;
             using namespace Phase2DAQFormatSpecification;
 
+            std::vector<Phase2TrackerCluster1D*> filteredClusters;
+            if (!clusters_exist)
+              return filteredClusters;
+            
             const GeomDetUnit* sensor_unit = trackerGeometry.idToDetUnit(clusterIterator->detId());
             unsigned int cic_boundary_in_z = CIC_Z_BOUNDARY_STRIPS;
 
@@ -66,7 +70,6 @@ class SensorHybrid
                 }
             }
 
-            std::vector<Phase2TrackerCluster1D*> filteredClusters;
 
             if ( clusterIterator != edmNew::DetSetVector<Phase2TrackerCluster1D>::const_iterator{} ) 
             {
@@ -247,10 +250,12 @@ class SensorHybrid
     public:
 
         SensorHybrid(edmNew::DetSetVector<Phase2TrackerCluster1D>::const_iterator sensor_1, 
-                    edmNew::DetSetVector<Phase2TrackerCluster1D>::const_iterator sensor_2, const bool cic_id, const TrackerGeometry& trackerGeometry, const unsigned int eventId) : cic_id_(cic_id), eventId_(eventId)
+                    edmNew::DetSetVector<Phase2TrackerCluster1D>::const_iterator sensor_2, 
+                    const bool sensor_1_clusters_exist, const bool sensor_2_clusters_exist,
+                    const bool cic_id, const TrackerGeometry& trackerGeometry, const unsigned int eventId) : cic_id_(cic_id), eventId_(eventId)
         {
-            sensor_1_clusters_ = get_clusters_on_cic(sensor_1, cic_id, trackerGeometry, 1);
-            sensor_2_clusters_ = get_clusters_on_cic(sensor_2, cic_id, trackerGeometry, 2);
+            sensor_1_clusters_ = get_clusters_on_cic(sensor_1, sensor_1_clusters_exist, cic_id, trackerGeometry, 1);
+            sensor_2_clusters_ = get_clusters_on_cic(sensor_2, sensor_2_clusters_exist, cic_id, trackerGeometry, 2);
         }
 
         unsigned int    get_payload_size() 

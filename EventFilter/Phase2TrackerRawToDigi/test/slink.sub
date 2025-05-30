@@ -1,0 +1,32 @@
+# slink.submit
+Universe       = vanilla
+
+# use our wrapper script
+Executable     = run_slink.sh
+
+# pass along the cfg
+transfer_input_files    = SLinkProducerAndUnpacker_cfg.py, run_slink.sh
+
+# grab the same CMSSW env vars inside the job
+getenv         = True
+
+# only transfer output ROOT file back
+should_transfer_files   = YES
+when_to_transfer_output = ON_EXIT
+transfer_output_files   = raw2clusters.root
+
++RequestGPUs           = 1
+request_cpus           = 1
+request_memory         = 4GB
+
+# logs
+log     = slink.log
+output  = slink.out
+error   = slink.err
+
+# only run on machines with GPUs
+#Requirements = (CUDADeviceCount >= 1)
+
+# submit one job (or change to “queue 10” for 10 jobs)
+queue 1
+

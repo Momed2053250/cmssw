@@ -119,6 +119,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 		trackerGeometry_ = &iSetup.getData(trackerGeometryToken_);
 		trackerTopology_ = &iSetup.getData(trackerTopologyToken_);
 		// Build the stack map 
+		/*
 		stackMap_.clear();
 		for (auto const& detUnit : trackerGeometry_->detUnits()) {
 			uint32_t rawId = detUnit->geographicalId().rawId();
@@ -129,7 +130,19 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 				stackMap_[stackIdx].first = rawId;
 			if (trackerTopology_->isUpper(detId))
 				stackMap_[stackIdx].second = rawId;
-		}
+		}*/
+		stackMap_.clear();
+for (auto iu = trackerGeometry_->detUnits().begin(); iu != trackerGeometry_->detUnits().end(); ++iu) {
+    unsigned int detId_raw = (*iu)->geographicalId().rawId();
+    DetId detId = DetId(detId_raw);
+    if (detId.det() == DetId::Detector::Tracker) {
+        int stackIdx = trackerTopology_->stack(detId);
+        if (trackerTopology_->isLower(detId))
+            stackMap_[stackIdx].first = detId;
+        if (trackerTopology_->isUpper(detId))
+            stackMap_[stackIdx].second = detId;
+    }
+}
 
 		// Step 1) read for the module type and store the information in a global buffer: we do this in the begin run to just do it once not per event and we store this information in a buffer that can be used later 
 
@@ -168,7 +181,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 					auto DetIdx = iChannel + (CICs_PER_SLINK * iSlink) + (CICs_PER_SLINK * SLINKS_PER_DTC * (dtcID - MIN_DTC_ID));
 
 					// then pass it to the map to get the detid
-					if (cablingMap_->knowsDTCELinkId(thisDTCElinkId))
+	/*				if (cablingMap_->knowsDTCELinkId(thisDTCElinkId))
 					{
 						auto possibleDetIds = cablingMap_->dtcELinkIdToDetId(thisDTCElinkId); // this returns a pair, detid will be an uint32_t (not a DetId)
 						thisDetId = possibleDetIds->second;
@@ -188,7 +201,40 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 						// If the slinks iDTC and iGBT are not connected then return an undefined module 
 						detIdxModuleTypeMap_[DetIdx] = WhichModule::undef;
 						continue;
-					}
+					}*/
+					if (cablingMap_->knowsDTCELinkId(thisDTCElinkId)) {
+    auto possibleDetIds = cablingMap_->dtcELinkIdToDetId(thisDTCElinkId); // returns a pair
+    thisDetId = possibleDetIds->second;
+
+    std::cout << "slink is :" << iSlink << "\n"
+              << "DtcID is:" << unsigned(dtcID) << "\n"
+              << "detId is:" << thisDetId << "\n";
+
+    LogTrace("RawToClusterProducer") << "slink: " << iSlink << "\tiDTC: " << unsigned(dtcID)
+                                     << "\tiGBT: " << unsigned(gbt_id)
+                                     << "\tielink: " << unsigned(0)
+                                     << "\t -> detId:" << thisDetId;
+
+    // Get stack index and safely access stackMap_
+    int stackIdx = trackerTopology_->stack(DetId(thisDetId));
+    auto it = stackMap_.find(stackIdx);
+    if (it != stackMap_.end()) {
+        is2SModule = trackerGeometry_->getDetectorType(it->second.first) == TrackerGeometry::ModuleType::Ph2SS;
+        detIdxModuleTypeMap_[DetIdx] = is2SModule ? WhichModule::TwoS : WhichModule::PS;
+    } else {
+        edm::LogWarning("RawToClusterProducer") << "Warning: stackIdx = " << stackIdx
+                                                << " (from detId " << thisDetId << ") not found in stackMap_!";
+        detIdxModuleTypeMap_[DetIdx] = WhichModule::undef;
+    }
+} else {
+    LogTrace("RawToClusterProducer") << "slink: " << iSlink
+                                     << "\tiDTC: " << unsigned(dtcID)
+                                     << "\tiGBT: " << unsigned(gbt_id)
+                                     << " -> not connected?";
+    detIdxModuleTypeMap_[DetIdx] = WhichModule::undef;
+    continue;
+}
+
 				} // channel 
 			} // slink 
 		} // det id 
@@ -223,7 +269,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 		}
 		*/
 
-		// 1) Build the flat raw‐word array:
+		// 1) Build the flat rawword array:
 		//FED Raw Collection as rowColl holds data fragments from each SLINK for every DTC
 		auto const& rawColl = iEvent.get(fedRawDataToken_);
 		// assert that the size is equal to number of slinks * dtcId 

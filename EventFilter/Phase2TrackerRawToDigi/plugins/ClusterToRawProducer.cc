@@ -81,6 +81,9 @@ void ClusterToRawProducer::produce(edm::Event& iEvent, const edm::EventSetup& iS
     using namespace Phase2TrackerSpecifications;
     using namespace Phase2DAQFormatSpecification;
 
+    // Retrieve collection of clusters from the event
+    edmNew::DetSetVector<Phase2TrackerCluster1D> const& all_clusters = iEvent.get(ClusterCollectionToken_);
+
     for (int dtc_id = MIN_DTC_ID; dtc_id < MAX_DTC_ID + 1; dtc_id++)
     {
         for (int slink_id = 0; slink_id < MAX_SLINK_ID + 1; slink_id++)
@@ -107,14 +110,20 @@ void ClusterToRawProducer::produce(edm::Event& iEvent, const edm::EventSetup& iS
                     auto link_to_det_association = cablingMap.dtcELinkIdToDetId(cms_link_id);
                     const DetId& det_id = link_to_det_association->second;
 
-                    edmNew::DetSetVector<Phase2TrackerCluster1D>::const_iterator sensor_1_cluster_collection = iEvent.get(ClusterCollectionToken_).find(det_id + 1);
-                    edmNew::DetSetVector<Phase2TrackerCluster1D>::const_iterator sensor_2_cluster_collection = iEvent.get(ClusterCollectionToken_).find(det_id + 2);
+                    // In order to prevent issues when retrieving the cluster collection for a given detID, check if it exists.
+                    // (the edmNew::DetSetVector.find method returns end() if the collection for the required det_id is not there, 
+                    // which could lead to inconsistencies later on)
+                    bool const sensor_1_clusters_exist = (all_clusters.exists(det_id + 1)) ? true : false;
+                    edmNew::DetSetVector<Phase2TrackerCluster1D>::const_iterator sensor_1_cluster_collection = all_clusters.find(det_id + 1);
 
+                    bool const sensor_2_clusters_exist = (all_clusters.exists(det_id + 2)) ? true : false;
+                    edmNew::DetSetVector<Phase2TrackerCluster1D>::const_iterator sensor_2_cluster_collection = all_clusters.find(det_id + 2);
+                    
                     // sensor_1_cic_0 and sensor_2_cic_0 form a single output daq channel.
-                    SensorHybrid Hybrid_1 (sensor_1_cluster_collection, sensor_2_cluster_collection, 0, trackerGeometry, eventId_);
+                    SensorHybrid Hybrid_1 (sensor_1_cluster_collection, sensor_2_cluster_collection, sensor_1_clusters_exist, sensor_2_clusters_exist, 0, trackerGeometry, eventId_);
 
                     // // sensor_1_cic_1 and sensor_2_cic_1 form a single output daq channel.
-                    SensorHybrid Hybrid_2 (sensor_1_cluster_collection, sensor_2_cluster_collection, 1, trackerGeometry, eventId_);
+                    SensorHybrid Hybrid_2 (sensor_1_cluster_collection, sensor_2_cluster_collection, sensor_1_clusters_exist, sensor_2_clusters_exist, 1, trackerGeometry, eventId_);
 
                     // sensor_2 is always isUpper == 1 for 2S.
                     // sensor_2 is always isLower == 0 for 2S.

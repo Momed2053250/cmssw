@@ -1,0 +1,5 @@
+009 (1007320.000.000) 05/29 12:20:39 Job was aborted.
+	Job removed by SYSTEM_PERIODIC_REMOVE due to wall time exceeded allowed max.
+
+	Job terminated by itself at 2025-05-28T10:20:05Z (using method 0: OF_ITS_OWN_ACCORD).
+...

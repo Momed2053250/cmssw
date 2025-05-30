@@ -6,10 +6,10 @@ import FWCore.ParameterSet.Config as cms
 import FWCore.ParameterSet.VarParsing as VarParsing
 import FWCore.Utilities.FileUtils as FileUtils
 import os
-from Configuration.ProcessModifiers.alpaka_cff import alpaka
 
-process = cms.Process("PACKANDUNPACK",alpaka)
-
+process = cms.Process("PACKANDUNPACK")
+#process.options.numberOfThreads = 1
+#process.options.numberOfStreams = 0
 def get_input_mc_line(dataset_database, line_number):
     with open(dataset_database, 'r') as file:
         lines = file.readlines()
@@ -38,28 +38,15 @@ options.parseArguments()
 GEOMETRY = "D98"
 
 process.load('Configuration.StandardSequences.Services_cff')
+process.load('Configuration.StandardSequences.Accelerators_cff')
+process.load('HeterogeneousCore.AlpakaCore.ProcessAcceleratorAlpaka_cfi')
+process.load('HeterogeneousCore.CUDACore.ProcessAcceleratorCUDA_cfi')
 process.load('Configuration.EventContent.EventContent_cff')
 process.load('Configuration.StandardSequences.MagneticField_cff')
-process.load('FWCore.MessageService.MessageLogger_cfi')
-process.MessageLogger.A = dict(limit = -1)
-
-process.MessageLogger = cms.Service("MessageLogger",
-    destinations = cms.untracked.vstring('logUnpacker'),
-    categories = cms.untracked.vstring('RawToClusterProducer'),
-    debugModules  = cms.untracked.vstring('*'),
-    logUnpacker = cms.untracked.PSet(
-        threshold = cms.untracked.string('DEBUG'),
-        INFO =  cms.untracked.PSet(limit = cms.untracked.int32(0)),
-        DEBUG = cms.untracked.PSet(limit = cms.untracked.int32(0)),
-        RawToClusterProducer = cms.untracked.PSet(limit = cms.untracked.int32(999999999))
-    ),
-)
-
 
 if GEOMETRY == "D88" or GEOMETRY == 'D98':
-#     print("using geometry " + GEOMETRY + " (tilted)")
     process.load('Configuration.Geometry.GeometryExtendedRun4' + GEOMETRY + 'Reco_cff')
-    process.load('Configuration.Geometry.GeometryExtendedRun4' + GEOMETRY +'_cff')
+    process.load('Configuration.Geometry.GeometryExtendedRun4' + GEOMETRY + '_cff')
 else:
     print("this is not a valid geometry!!!")
 
@@ -73,14 +60,12 @@ process.maxEvents = cms.untracked.PSet(input = cms.untracked.int32(1))
 
 process.source = cms.Source("PoolSource",
     fileNames = cms.untracked.vstring(
-    "/store/relval/CMSSW_14_0_0_pre2/RelValTTbar_14TeV/GEN-SIM-DIGI-RAW/PU_133X_mcRun4_realistic_v1_STD_2026D98_PU200_RV229-v1/2580000/0b2b0b0b-f312-48a8-9d46-ccbadc69bbfd.root"
-#     "/store/relval/CMSSW_14_0_0_pre2/RelValDisplacedSingleMuFlatPt1p5To8/GEN-SIM-DIGI-RAW/133X_mcRun4_realistic_v1_STD_2026D98_noPU_RV229-v1/2580000/3ce31040-55a5-4469-8ee2-16d050bb6ade.root"
+        "/store/relval/CMSSW_14_0_0_pre2/RelValTTbar_14TeV/GEN-SIM-DIGI-RAW/"
+        "PU_133X_mcRun4_realistic_v1_STD_2026D98_PU200_RV229-v1/"
+        "2580000/0b2b0b0b-f312-48a8-9d46-ccbadc69bbfd.root"
     )
- )
+)
 
-## in case of local file
-# process.load("CondCore.CondDB.CondDB_cfi")
-# process.CondDB.connect = 'sqlite_file:/afs/cern.ch/work/f/fiorendi/private/l1tt/unpacker_retry/CMSSW_14_1_0_pre7/src/Phase2RawToDigi/Phase2DAQProducer/python/OTandITDTCCablingMap_T33.db'
 process.load("CondCore.CondDB.CondDB_cfi")
 process.CondDB.connect = 'frontier://FrontierProd/CMS_CONDITIONS'
 
@@ -106,31 +91,34 @@ process.Packer = cms.EDProducer("ClusterToRawProducer",
 process.Analyzer = cms.EDAnalyzer("RawAnalyzer",
     fedRawDataCollection = cms.InputTag("Packer"),
 )
+
 process.Unpacker = cms.EDProducer("Phase2RawToClusterProducer@alpaka",
+#process.Unpacker = cms.EDProducer("alpaka_serial_sync::Phase2RawToClusterProducer",
+#process.Unpacker = cms.EDProducer("alpaka_cuda_async::Phase2RawToClusterProducer",
+#process.Unpacker = cms.EDProducer("alpaka_rocm_async::Phase2RawToClusterProducer",        
     fedRawDataCollection = cms.InputTag("Packer"),
 )
 
 process.out = cms.OutputModule("PoolOutputModule",
     splitLevel = cms.untracked.int32(0),
-    eventAutoFlushCompressedSize = cms.untracked.int32(5242880),                              
-    outputCommands = cms.untracked.vstring('drop *',
-      'keep FEDRawDataCollection_*_*_*',
-      'keep *_ClustersFromPhase2TrackerDigis_*_*',
-      'keep *_Packer_*_*',
-      'keep *_Unpacker_*_*',
-      'keep *_mix_Tracker_*',
-      ),
-    fileName = cms.untracked.string('raw2clusters.root')
+    eventAutoFlushCompressedSize = cms.untracked.int32(5242880),
+    outputCommands = cms.untracked.vstring(
+        'drop *',
+        'keep FEDRawDataCollection_*_*_*',
+        'keep *_ClustersFromPhase2TrackerDigis_*_*',
+        'keep *_Packer_*_*',
+        'keep *_Unpacker_*_*',
+        'keep *_mix_Tracker_*',
+    ),
+    fileName = cms.untracked.string('raw2clusters_alpaka.root')
 )
-
-
 
 from Configuration.ProcessModifiers.premix_stage2_cff import premix_stage2
 premix_stage2.toModify(process.ClustersFromPhase2TrackerDigis, rawHits = ["mixData:Tracker"])
 
 process.Timing = cms.Service("Timing",
-    summaryOnly = cms.untracked.bool(True),  # If true, only the summary is printed.
-    useJobReport = cms.untracked.bool(True)  # This will also log timings in the job report.
+    summaryOnly = cms.untracked.bool(True),
+    useJobReport = cms.untracked.bool(True)
 )
 
 process.dtc = cms.Path(process.ClustersFromPhase2TrackerDigis * process.Packer * process.Unpacker)
