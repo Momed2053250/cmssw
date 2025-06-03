@@ -8,8 +8,8 @@ import FWCore.Utilities.FileUtils as FileUtils
 import os
 
 process = cms.Process("PACKANDUNPACK")
-#process.options.numberOfThreads = 1
-#process.options.numberOfStreams = 0
+process.options.numberOfThreads = 1
+process.options.numberOfStreams = 0
 def get_input_mc_line(dataset_database, line_number):
     with open(dataset_database, 'r') as file:
         lines = file.readlines()

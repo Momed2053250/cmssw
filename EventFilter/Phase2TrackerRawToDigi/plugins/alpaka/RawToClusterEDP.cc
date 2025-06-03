@@ -88,11 +88,10 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 			std::map<int, std::pair<int,int>> stackMap_;
 			// make the host buffers 
 			// DTC*slink *channel -> DetIdx
-			// Make new queue to access a queue before the produce method 
-			Queue myqueue;
 			//Get the available device for memory allocation 
 			Device devAcc = alpaka::getDevByIdx(Platform{}, 0u);
-
+			// Make new queue to access a queue before the produce method 
+			Queue myqueue;
 			// TODO:: check if the buffer can be changed to SoAs 
 			cms::alpakatools::host_buffer<int[]> detIdxModuleTypeMap_;
 			cms::alpakatools::device_buffer<Device, int[]> detIdxModuleTypeDevice_;
@@ -108,8 +107,9 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 		outputToken_{ produces() },
 		myqueue(devAcc),
 		// Make the Global host and device buffer for each Module Type witht he given size = dtcId * number of slinks * number of channels 
-		detIdxModuleTypeMap_{cms::alpakatools::make_host_buffer<int[], Platform>((MAX_DTC_ID - MIN_DTC_ID) * SLINKS_PER_DTC * CICs_PER_SLINK )},	
-		detIdxModuleTypeDevice_{cms::alpakatools::make_device_buffer<int[]>(myqueue,(MAX_DTC_ID - MIN_DTC_ID) * SLINKS_PER_DTC * CICs_PER_SLINK )}
+		//// include +1 because DTC IDs run from MIN_DTC_ID through MAX_DTC_ID inclusive this solves the buffer overflow issue in run time 
+		detIdxModuleTypeMap_{cms::alpakatools::make_host_buffer<int[], Platform>((MAX_DTC_ID - MIN_DTC_ID +1) * SLINKS_PER_DTC * CICs_PER_SLINK + 1)},	
+		detIdxModuleTypeDevice_{cms::alpakatools::make_device_buffer<int[]>(myqueue,(MAX_DTC_ID - MIN_DTC_ID +1) * SLINKS_PER_DTC * CICs_PER_SLINK + 1)}
 	{
 	}
 
@@ -119,30 +119,32 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 		trackerGeometry_ = &iSetup.getData(trackerGeometryToken_);
 		trackerTopology_ = &iSetup.getData(trackerTopologyToken_);
 		// Build the stack map 
-		/*
-		stackMap_.clear();
-		for (auto const& detUnit : trackerGeometry_->detUnits()) {
+		/*	
+			stackMap_.clear();
+			for (auto const& detUnit : trackerGeometry_->detUnits()) {
 			uint32_t rawId = detUnit->geographicalId().rawId();
 			DetId detId(rawId);
 			if (detId.det() != DetId::Detector::Tracker) continue;
 			int stackIdx = trackerTopology_->stack(detId);
 			if (trackerTopology_->isLower(detId))
-				stackMap_[stackIdx].first = rawId;
+			stackMap_[stackIdx].first = rawId;
 			if (trackerTopology_->isUpper(detId))
-				stackMap_[stackIdx].second = rawId;
-		}*/
+			stackMap_[stackIdx].second = rawId;
+			} */
 		stackMap_.clear();
-for (auto iu = trackerGeometry_->detUnits().begin(); iu != trackerGeometry_->detUnits().end(); ++iu) {
-    unsigned int detId_raw = (*iu)->geographicalId().rawId();
-    DetId detId = DetId(detId_raw);
-    if (detId.det() == DetId::Detector::Tracker) {
-        int stackIdx = trackerTopology_->stack(detId);
-        if (trackerTopology_->isLower(detId))
-            stackMap_[stackIdx].first = detId;
-        if (trackerTopology_->isUpper(detId))
-            stackMap_[stackIdx].second = detId;
-    }
-}
+		for (auto iu = trackerGeometry_->detUnits().begin(); iu != trackerGeometry_->detUnits().end(); ++iu) {
+			unsigned int detId_raw = (*iu)->geographicalId().rawId();
+			DetId detId = DetId(detId_raw);
+			if (detId.det() == DetId::Detector::Tracker) {
+				int stackIdx = trackerTopology_->stack(detId);
+				if (trackerTopology_->isLower(detId) != 0){
+					stackMap_[stackIdx].first = detId;
+				}
+				if (trackerTopology_->isUpper(detId) != 0){
+					stackMap_[stackIdx].second = detId;
+				}
+			}
+		} 
 
 		// Step 1) read for the module type and store the information in a global buffer: we do this in the begin run to just do it once not per event and we store this information in a buffer that can be used later 
 
@@ -181,70 +183,87 @@ for (auto iu = trackerGeometry_->detUnits().begin(); iu != trackerGeometry_->det
 					auto DetIdx = iChannel + (CICs_PER_SLINK * iSlink) + (CICs_PER_SLINK * SLINKS_PER_DTC * (dtcID - MIN_DTC_ID));
 
 					// then pass it to the map to get the detid
-	/*				if (cablingMap_->knowsDTCELinkId(thisDTCElinkId))
-					{
-						auto possibleDetIds = cablingMap_->dtcELinkIdToDetId(thisDTCElinkId); // this returns a pair, detid will be an uint32_t (not a DetId)
-						thisDetId = possibleDetIds->second;
-						// Adding a printout for an intermediate check 
-						std::cout << "slink is :" << iSlink << "\n" << "DtcID is:" << unsigned(dtcID) << "\n" << " detId is:" << thisDetId << "\n";
-						//
-						LogTrace("RawToClusterProducer") << "slink: " << iSlink << "\tiDTC: " << unsigned(dtcID) << "\tiGBT: " << unsigned(gbt_id)
-							<< "\tielink: " << unsigned(0) << "\t -> detId:" << thisDetId;
-						// check if it is 2S or PS
-						is2SModule = trackerGeometry_->getDetectorType( stackMap_[thisDetId].first) == TrackerGeometry::ModuleType::Ph2SS;
-						// If the slinks iDTC and iGBT are connected then check which module it is 
-						detIdxModuleTypeMap_[DetIdx] = is2SModule ? WhichModule::TwoS : WhichModule::PS;		
+					/*				if (cablingMap_->knowsDTCELinkId(thisDTCElinkId))
+									{
+									auto possibleDetIds = cablingMap_->dtcELinkIdToDetId(thisDTCElinkId); // this returns a pair, detid will be an uint32_t (not a DetId)
+									thisDetId = possibleDetIds->second;
+					// Adding a printout for an intermediate check 
+					std::cout << "slink is :" << iSlink << "\n" << "DtcID is:" << unsigned(dtcID) << "\n" << " detId is:" << thisDetId << "\n";
+					//
+					LogTrace("RawToClusterProducer") << "slink: " << iSlink << "\tiDTC: " << unsigned(dtcID) << "\tiGBT: " << unsigned(gbt_id)
+					<< "\tielink: " << unsigned(0) << "\t -> detId:" << thisDetId;
+					// check if it is 2S or PS
+					is2SModule = trackerGeometry_->getDetectorType( stackMap_[thisDetId].first) == TrackerGeometry::ModuleType::Ph2SS;
+					// If the slinks iDTC and iGBT are connected then check which module it is 
+					detIdxModuleTypeMap_[DetIdx] = is2SModule ? WhichModule::TwoS : WhichModule::PS;		
 					}
 					else {
-						LogTrace("RawToClusterProducer") << "slink: " << iSlink << "\tiDTC: " << unsigned(dtcID) << "\tiGBT: " << unsigned(gbt_id)
-							<< " -> not connected? " ;
-						// If the slinks iDTC and iGBT are not connected then return an undefined module 
-						detIdxModuleTypeMap_[DetIdx] = WhichModule::undef;
-						continue;
+					LogTrace("RawToClusterProducer") << "slink: " << iSlink << "\tiDTC: " << unsigned(dtcID) << "\tiGBT: " << unsigned(gbt_id)
+					<< " -> not connected? " ;
+					// If the slinks iDTC and iGBT are not connected then return an undefined module 
+					detIdxModuleTypeMap_[DetIdx] = WhichModule::undef;
+					continue;
 					}*/
 					if (cablingMap_->knowsDTCELinkId(thisDTCElinkId)) {
-    auto possibleDetIds = cablingMap_->dtcELinkIdToDetId(thisDTCElinkId); // returns a pair
-    thisDetId = possibleDetIds->second;
+						auto possibleDetIds = cablingMap_->dtcELinkIdToDetId(thisDTCElinkId); // returns a pair
+						thisDetId = possibleDetIds->second;
 
-    std::cout << "slink is :" << iSlink << "\n"
-              << "DtcID is:" << unsigned(dtcID) << "\n"
-              << "detId is:" << thisDetId << "\n";
+						std::cout << "slink is :" << iSlink << "\n"
+							<< "DtcID is:" << unsigned(dtcID) << "\n"
+							<< "detId is:" << thisDetId << "\n";
 
-    LogTrace("RawToClusterProducer") << "slink: " << iSlink << "\tiDTC: " << unsigned(dtcID)
-                                     << "\tiGBT: " << unsigned(gbt_id)
-                                     << "\tielink: " << unsigned(0)
-                                     << "\t -> detId:" << thisDetId;
+						LogTrace("RawToClusterProducer") << "slink: " << iSlink << "\tiDTC: " << unsigned(dtcID)
+							<< "\tiGBT: " << unsigned(gbt_id)
+							<< "\tielink: " << unsigned(0)
+							<< "\t -> detId:" << thisDetId;
 
-    // Get stack index and safely access stackMap_
-    int stackIdx = trackerTopology_->stack(DetId(thisDetId));
-    auto it = stackMap_.find(stackIdx);
-    if (it != stackMap_.end()) {
-        is2SModule = trackerGeometry_->getDetectorType(it->second.first) == TrackerGeometry::ModuleType::Ph2SS;
-        detIdxModuleTypeMap_[DetIdx] = is2SModule ? WhichModule::TwoS : WhichModule::PS;
-    } else {
-        edm::LogWarning("RawToClusterProducer") << "Warning: stackIdx = " << stackIdx
-                                                << " (from detId " << thisDetId << ") not found in stackMap_!";
-        detIdxModuleTypeMap_[DetIdx] = WhichModule::undef;
-    }
-} else {
-    LogTrace("RawToClusterProducer") << "slink: " << iSlink
-                                     << "\tiDTC: " << unsigned(dtcID)
-                                     << "\tiGBT: " << unsigned(gbt_id)
-                                     << " -> not connected?";
-    detIdxModuleTypeMap_[DetIdx] = WhichModule::undef;
-    continue;
-}
+						// Get stack index and safely access stackMap_
+						int stackIdx = trackerTopology_->stack(DetId(thisDetId));
+						auto it = stackMap_.find(stackIdx);
+						//TODO:uncomment the if/else case and debug the warning right after memeort access problem  
+						//	if (it != stackMap_.end()) {
+
+						is2SModule = trackerGeometry_->getDetectorType(it->second.first) == TrackerGeometry::ModuleType::Ph2SS;
+						detIdxModuleTypeMap_[DetIdx] = is2SModule ? WhichModule::TwoS : WhichModule::PS;
+						//	} else {
+						//		edm::LogWarning("RawToClusterProducer") << "Warning: stackIdx = " << stackIdx
+						//			<< " (from detId " << thisDetId << ") not found in stackMap_!";
+						//		detIdxModuleTypeMap_[DetIdx] = WhichModule::undef;
+						//	}
+					} else {
+						LogTrace("RawToClusterProducer") << "slink: " << iSlink
+							<< "\tiDTC: " << unsigned(dtcID)
+							<< "\tiGBT: " << unsigned(gbt_id)
+							<< " -> not connected?";
+						detIdxModuleTypeMap_[DetIdx] = WhichModule::undef;
+						continue;
+					}
 
 				} // channel 
 			} // slink 
 		} // det id 
-
+		// Debug 
+		{
+			constexpr unsigned N = (MAX_DTC_ID - MIN_DTC_ID + 1)
+				* SLINKS_PER_DTC
+				* CICs_PER_SLINK;
+			std::cout << "[Debug] copying " << N << " ints ("
+				<< (N * sizeof(int)) << " bytes)\n";
+		}
+		//
 		// Copy the information to the memory storages we created from the host read veiw to the device buffer store 
-		alpaka::memcpy(
+		/*		alpaka::memcpy(
 				myqueue,				
 				detIdxModuleTypeDevice_,        // device destination pointer
 				detIdxModuleTypeMap_, // host source pointer
-				static_cast< unsigned int>(((MAX_DTC_ID - MIN_DTC_ID) * SLINKS_PER_DTC * CICs_PER_SLINK ) * sizeof(int))  // total bytes to copy
+				static_cast< unsigned int>(((MAX_DTC_ID - MIN_DTC_ID +1) * SLINKS_PER_DTC * CICs_PER_SLINK ) * sizeof(int))  // total bytes to copy
+				); */
+		constexpr unsigned N = (MAX_DTC_ID - MIN_DTC_ID +1)*SLINKS_PER_DTC*CICs_PER_SLINK;
+		alpaka::memcpy(
+				myqueue,
+				detIdxModuleTypeDevice_,
+				detIdxModuleTypeMap_,
+				N     // number of int elements
 			      );
 	} // Begin run 
 
@@ -274,7 +293,8 @@ for (auto iu = trackerGeometry_->detUnits().begin(); iu != trackerGeometry_->det
 		auto const& rawColl = iEvent.get(fedRawDataToken_);
 		// assert that the size is equal to number of slinks * dtcId 
 		// TODO: Check if this assert is correct or there also has to be the * CICs_PER_SLINK also 
-		assert(rawColl.size() == SLINKS_PER_DTC * (MAX_DTC_ID - MIN_DTC_ID));
+		// TODO: uncomment the assert 
+		//	assert(rawColl.size() == SLINKS_PER_DTC * (MAX_DTC_ID - MIN_DTC_ID));
 		//store all rawColl in three vecotrs where these will store its data size and an offset
 		//Data: raw byte
 		std::vector<unsigned char> linearData;
@@ -285,19 +305,26 @@ for (auto iu = trackerGeometry_->detUnits().begin(); iu != trackerGeometry_->det
 		// Fill size with the length of each FEDData fragment
 		for (auto j = 0u; j < rawColl.size(); ++j) {
 			auto& data = rawColl.FEDData(j);
-			size.push_back(data.size());
+			//	size.push_back(data.size());
+			size[j] = data.size();
 		}
 		// Compute offsets via exclusive scan:
 		// offset[i] = sum of size[0] through size[i-1]
 		std::exclusive_scan(size.begin(), size.end(), offset.begin(), 0);
 		// Reserve total capacity for linearData: last offset + last fragment size
-		linearData.reserve(offset[offset.size()-1] + size[size.size() - 1]);
+		//linearData.reserve(offset[offset.size()-1] + size[size.size() - 1]);
+		//linearData.reserve(offset.back() + size.back());
+		//changing reserve to resize in attempt to so;ve the illegal memory access runtime erro 
+		size_t totalBytes = offset.back() + size.back();
+		linearData.resize(totalBytes);
+		// Now linearData.data() points to a buffer of length = totalBytes
 		// Make a raw pointer to the beggining of the LinearData
 		unsigned char* start = linearData.data();
 		// Copy each fragment into linearData at its computed offset
 		for (auto j = 0u; j < rawColl.size(); ++j) {
 			auto& data = rawColl.FEDData(j);
-			std::memcpy(start + offset[j], data.data(), data.size() );
+			//std::memcpy(start + offset[j], data.data(), data.size() );
+			std::memcpy(start + offset[j], data.data(), size[j]);
 		}
 		// Make memory allocations to veiw these data from the CPU and copy them inot a buffer in GPU 
 		auto linearData_HostView = cms::alpakatools::make_host_view<unsigned char>(linearData.data(), static_cast<long unsigned int>(linearData.size()));

@@ -17,8 +17,14 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 	using namespace Phase2RawToCluster;
 	using namespace Phase2TrackerSpecifications;
 	using namespace Phase2DAQFormatSpecification;
-
-	// create masking 
+                                                // In attempt to solve the illegal memory access we combine all the getdynSaredMem to one and the cut them in smaller peice in the operator kernal for unpacker 
+  static constexpr int MaxHeaderWords   = HEADER_N_LINES;
+  static constexpr int MaxOffsetWords   = (OFFSET_BITS * CICs_PER_SLINK) / N_BITS_PER_WORD;
+  static constexpr int MaxPayloadLines  = 128;                  // assumption for now TODO: to check all the defs here 
+  static constexpr int MaxStripClusters = N_CLUSTER_MASK + 1;   // 128
+  static constexpr int MaxPixelClusters = N_CLUSTER_MASK + 1;   // 128	
+						
+						// create masking 
 	ALPAKA_FN_ACC int createMask(int nBits) {
 		return (1 << nBits) - 1;
 	}
@@ -118,27 +124,58 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 	//
 	// Unpacker kernel: top-level device loop over FED fragments
 	struct Unpacker {
-		template <typename Acc, typename RawDataBuff, typename sizeDataBuff, typename offsetDataBuff, typename InMap>
+	/*	template <typename Acc, typename RawDataBuff, typename sizeDataBuff, typename offsetDataBuff, typename InMap>
 			ALPAKA_FN_ACC void operator()(Acc const& acc,
 					RawDataBuff in, // raw byte buffer
 					sizeDataBuff sizes, // sizes per fragment
 					offsetDataBuff offsets, // offsets per fragment 
-					InMap const& detIdxModuleTypeMap  // module‑type map
+					InMap const& detIdxModuleTypeMap  // module‑type map */
+		// added 
+		template <
+      typename Acc,
+      typename RawBufView,
+      typename SizeBufView,
+      typename OffBufView,
+      typename InMapView
+    >
+    ALPAKA_FN_ACC void operator()(
+      Acc const& acc,
+      RawBufView         in,    // device_buffer<Device,unsigned char[]>
+      SizeBufView        sizes,   // device_buffer<Device,size_t[]>
+      OffBufView         offsets, // device_buffer<Device,size_t[]>
+      InMapView          const& detIdxModuleTypeMap,          // device_buffer<Device,int[]>
+      // ← Alpaka auto‐inserts a “waitPtr” parameter before the next argument
+      size_t
 					) const {
+				// (A) Allocate ONE contiguous chunk of dynamic shared memory:
+      uint8_t*  smemBytes = alpaka::getDynSharedMem<uint8_t>(acc);
+      uint32_t* smemWords = reinterpret_cast<uint32_t*>(smemBytes);
+
+      // (B) Slice that chunk into disjoint regions:
+      uint32_t* headerWords       = smemWords;                           // [0 .. MaxHeaderWords-1]
+      uint32_t* offsetWords       = headerWords       + MaxHeaderWords;  // [MaxHeaderWords .. ]
+      uint32_t* lines             = offsetWords       + MaxOffsetWords;  // [ ... ]
+      uint32_t* stripClusterWords = lines             + MaxPayloadLines;  // [ ... ]
+      uint32_t* pixelClusterWords = stripClusterWords + MaxStripClusters; // [ ... ]
+
+
 				//// Iterate over each FED fragment ID in parallel with indepndant group tool 
 				for (auto frdId : cms::alpakatools::independent_groups(acc,
-							(MAX_DTC_ID - MIN_DTC_ID) * SLINKS_PER_DTC)) {
+							(MAX_DTC_ID - MIN_DTC_ID + 1) * SLINKS_PER_DTC)) {
 
 					// process only if fedData.size() > 0
 					if (sizes[frdId] > 0) 
 					{
 
 						// Pointer to the start of fragment data
-						const unsigned char* dataPtr = in;
+						//const unsigned char* dataPtr = in;
+						const unsigned char* dataPtr = in + offsets[frdId];
+
+// 2. Ilegal Mem: next step in to get rid of all individual dynamic mems 
 
 						// read the header
 
-						uint32_t* headerWords = nullptr;
+				/*		uint32_t* headerWords = nullptr;
 						if constexpr (!requires_single_thread_per_block_v<Acc>){
 							headerWords = alpaka::getDynSharedMem<uint32_t>(acc);
 						}
@@ -154,10 +191,20 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 						alpaka::syncBlockThreads(acc);
 						// Print out for intermediate check
 						printf("headerWords[0] = %u\n", headerWords[0]);
+						*/
+						// 1) Read the header (HEADER_N_LINES words) into headerWords[]:
+          size_t nHeaderLines = HEADER_N_LINES;
+          for (auto k : cms::alpakatools::independent_group_elements(acc, nHeaderLines)) {
+            int byteIdx = static_cast<int>(k) * N_BYTES_PER_WORD;
+            // (Optional bounds check: ensure byteIdx+3 < sizes[frdId])
+            headerWords[k] = readLine(dataPtr, byteIdx);
+          }
+          alpaka::syncBlockThreads(acc);
+          printf("headerWords[0] = %u\n", headerWords[0]);
 
 						// read the offsets into shared memory: each 32 bit word contains two offset words of 16 bit each
 						// shared buffer for channel offsets: dynamic shared memory
-						uint32_t* offsetWords = nullptr;
+				/*		uint32_t* offsetWords = nullptr;
 						if constexpr (!requires_single_thread_per_block_v<Acc>){
 							offsetWords = alpaka::getDynSharedMem<uint32_t>(acc);
 						}
@@ -176,6 +223,17 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 						alpaka::syncBlockThreads(acc);
 						// Print out for intermediate check 
 						printf("offsetWords[0] = %u\n", offsetWords[0]);
+						*/
+	  					// 2) Read offset words into offsetWords[]:
+          size_t nOffsetsLines = (OFFSET_BITS * CICs_PER_SLINK) / N_BITS_PER_WORD;
+          size_t initByte      = HEADER_N_LINES * N_BYTES_PER_WORD;
+          for (auto k : cms::alpakatools::independent_group_elements(acc, nOffsetsLines)) {
+            int byteIdx = static_cast<int>(initByte + k * N_BYTES_PER_WORD);
+            offsetWords[k] = readLine(dataPtr, byteIdx);
+          }
+          alpaka::syncBlockThreads(acc);
+          printf("offsetWords[0] = %u\n", offsetWords[0]);
+
 
 						// now read the payload (channel header + clusters)
 						// all channel headers should be there, even if 0 clusters are found
@@ -184,14 +242,21 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 						//---------- Unpack each channel ----------
 						for (unsigned int iChannel = 0; iChannel < CICs_PER_SLINK; iChannel++)
 						{
-							// clear the collection if iChannel is even
+							// clear the collection if iChannel is even   // See if this need to be a TODO
 							if (iChannel%2==0){
 								//     thisChannel1DSeedClusters.clear();
 								//     thisChannel1DCorrClusters.clear();
 							}  
 
 							// retrieve the module type:  	TODO: 	check the logic if debug 
-							int is2SModule = detIdxModuleTypeMap[frdId+iChannel];
+							//	int is2SModule = detIdxModuleTypeMap[frdId+iChannel];
+							// it is debuf so checking the logic
+							// first, compute your flat index into the [dtc][slink][channel] array:
+							//
+							const unsigned CICs = CICs_PER_SLINK;
+							unsigned flatIdx = frdId * CICs + iChannel;
+							// then use 
+							int is2SModule = detIdxModuleTypeMap[ flatIdx ];
 
 							// find the channel offset
 							int initial_offset = (HEADER_N_LINES + MODULES_PER_SLINK) * N_BYTES_PER_WORD;
@@ -219,7 +284,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 								    }  
 								    */         
 							// first retrieve all lines filled with clusters
-							uint32_t* lines = nullptr;
+				/*			uint32_t* lines = nullptr;
 							if constexpr (!requires_single_thread_per_block_v<Acc>){
 								lines = alpaka::getDynSharedMem<uint32_t>(acc);
 							}
@@ -230,7 +295,13 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 							for (auto k : cms::alpakatools::independent_group_elements(acc, nLines)){
 								lines[k] = readLine(dataPtr, getLineIndex(idx, k));
 							}
-							alpaka::syncBlockThreads(acc);
+							alpaka::syncBlockThreads(acc); */
+							for (auto k : cms::alpakatools::independent_group_elements(acc, nLines)) {
+              int byteIdx = idx + static_cast<int>(k) * N_BYTES_PER_WORD;
+              lines[k] = readLine(dataPtr, byteIdx);
+            }
+            alpaka::syncBlockThreads(acc);
+
 							/*   if ( lines.size() != nLines) {
 							     edm::LogError("RawtoClusterProducer") << "Numbers of stored lines does not match with size of lines to be read!";
 							     return;
@@ -249,14 +320,15 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 							}
 							// Read payloads for 2S 
 							if (is2SModule) {
-								uint32_t* stripClusterWords = nullptr;
+					/*			uint32_t* stripClusterWords = nullptr;
 								if constexpr (!requires_single_thread_per_block_v<Acc>){
 									stripClusterWords = alpaka::getDynSharedMem<uint32_t>(acc);
 								}
 								else
 								{ //Only supported for non CPU  accelerators   TODO:: FIx for the CPU
 
-								}
+								}*/
+
 								// Consider only one thread per thread block with once_per_block 
 								if (cms::alpakatools::once_per_block(acc)){
 									readPayload(stripClusterWords, lines, numStripClusters, nAvailableBits, iLine, bitsToRead, nFullClustersStrip, SS_CLUSTER_BITS, SS_CLUSTER_WORD_MASK, false );
@@ -265,7 +337,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 							} 
 							// For the PS models 
 							else {
-								// Allocate a separate dynamic memory to strip/pixel cluster words 
+						/*		// Allocate a separate dynamic memory to strip/pixel cluster words 
 								uint32_t* stripClusterWords = nullptr;
 								if constexpr (!requires_single_thread_per_block_v<Acc>){
 									stripClusterWords = alpaka::getDynSharedMem<uint32_t>(acc);
@@ -281,7 +353,8 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 								else
 								{ //Only supported for non CPU  accelerators   TODO:: FIx for the CPU
 
-								}
+								}*/
+
 								if (cms::alpakatools::once_per_block(acc)){
 									readPayload(stripClusterWords, lines, numStripClusters, nAvailableBits, iLine, bitsToRead, nFullClustersStrip, SS_CLUSTER_BITS, SS_CLUSTER_WORD_MASK, false );
 									readPayload(pixelClusterWords, lines, numPixelClusters, nAvailableBits, iLine, bitsToRead, nFullClustersPix, PX_CLUSTER_BITS, PX_CLUSTER_WORD_MASK, true, nFullClustersStrip );
@@ -389,9 +462,31 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 			cms::alpakatools::device_buffer<Device, size_t[]> offsetdatabuff,
 			cms::alpakatools::device_buffer<Device, int[]> inmap) {
 		const uint32_t threadsPerBlock = 128;
-		const uint32_t blocks = (MAX_DTC_ID - MIN_DTC_ID) * SLINKS_PER_DTC ;
+		// +1 added for normalization of the 3D indexing
+		const uint32_t blocks = (MAX_DTC_ID - MIN_DTC_ID + 1) * SLINKS_PER_DTC ;
 		auto workDiv = cms::alpakatools::make_workdiv<Acc1D>(blocks, threadsPerBlock);
-		alpaka::exec<Acc1D>(queue, workDiv, Unpacker{}, rawdatabuff.data(), sizedatabuff.data(), offsetdatabuff.data(), inmap.data());
+		// Adding for the 1 dynSharedmem 
+		// Compute total dynamic shared memory (in bytes):
+    constexpr int totalSharedWords =
+        MaxHeaderWords
+      + MaxOffsetWords
+      + MaxPayloadLines
+      + MaxStripClusters
+      + MaxPixelClusters;
+    constexpr size_t totalSharedBytes =
+        static_cast<size_t>(totalSharedWords) * sizeof(uint32_t);
+    //
+//		alpaka::exec<Acc1D>(queue, workDiv, Unpacker{}, rawdatabuff.data(), sizedatabuff.data(), offsetdatabuff.data(), inmap.data());
+		alpaka::exec<Acc1D>(
+      queue,
+      workDiv,
+      Unpacker{},
+      rawdatabuff.data(),
+      sizedatabuff.data(),
+      offsetdatabuff.data(),
+      inmap.data(),
+      totalSharedBytes // <-- pass dynamic shared memory size here
+    );
 	}
 
 	// Launch the 2S unpacker kernel on device
