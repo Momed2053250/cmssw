@@ -80,3 +80,46 @@
 
 	Job terminated by itself at 2025-05-28T10:25:32Z (using method 0: OF_ITS_OWN_ACCORD).
 ...
+000 (1030144.000.000) 06/04 10:44:13 Job submitted from host: <188.185.129.8:9618?addrs=188.185.129.8-9618+[2001-1458-d03-1--100-8a]-9618&alias=bigbird101.cern.ch&noUDP&sock=schedd_3241060_289e>
+...
+040 (1030144.000.000) 06/04 10:44:54 Started transferring input files
+	Transferring to host: <128.142.241.90:9618?addrs=128.142.241.90-9618+[2001-1458-301-ce--100-1cf]-9618&alias=b9g47n5843.cern.ch&noUDP&sock=slot1_1_2986_a833_3523>
+...
+040 (1030144.000.000) 06/04 10:44:54 Finished transferring input files
+...
+001 (1030144.000.000) 06/04 10:44:54 Job executing on host: <128.142.241.90:9618?addrs=128.142.241.90-9618+[2001-1458-301-ce--100-1cf]-9618&alias=b9g47n5843.cern.ch&noUDP&sock=startd_2773_a036>
+	SlotName: slot1_1@b9g47n5843.cern.ch
+	AvailableGPUs = { GPUs_GPU_d93dc087 }
+	CondorScratchDir = "/pool/condor/dir_844583"
+	Cpus = 2
+	Disk = 2048
+	GPUs = 1
+	GPUs_GPU_d93dc087 = [ GlobalMemoryMb = 32494; MaxSupportedVersion = 12090; DriverVersion = 12.9; ComputeUnits = 80; ECCEnabled = true; DeviceUuid = "d93dc087-0f06-a7ee-241e-d0afdf77a74e"; DeviceName = "Tesla V100-PCIE-32GB"; CoresPerCU = 64; ClockMhz = 1380.0; DevicePciBusId = "0000:07:00.0"; Capability = 7.0; Id = "GPU-d93dc087" ]
+	Memory = 6000
+...
+006 (1030144.000.000) 06/04 10:45:08 Image size of job updated: 932
+	1  -  MemoryUsage of job (MB)
+	932  -  ResidentSetSize of job (KB)
+...
+006 (1030144.000.000) 06/04 10:47:57 Image size of job updated: 1643556
+	1  -  MemoryUsage of job (MB)
+	932  -  ResidentSetSize of job (KB)
+...
+040 (1030144.000.000) 06/04 10:47:57 Started transferring output files
+...
+040 (1030144.000.000) 06/04 10:47:57 Finished transferring output files
+...
+007 (1030144.000.000) 06/04 10:47:57 Shadow exception!
+	Error from slot1_1@b9g47n5843.cern.ch: STARTER at 128.142.241.90 failed to send file(s) to <188.185.129.8:9618>: |Error: reading from file /pool/condor/dir_844583/raw2clusters.root: (errno 2) No such file or directory; SHADOW failed to receive file(s) from <128.142.241.90:34687>
+	1170984  -  Run Bytes Sent By Job
+	6106  -  Run Bytes Received By Job
+...
+012 (1030144.000.000) 06/04 10:47:57 Job was held.
+	Transfer output files failure at execution point slot1_1@b9g47n5843.cern.ch while sending files to access point bigbird101. Details: reading from file /pool/condor/dir_844583/raw2clusters.root: (errno 2) No such file or directory
+	Code 12 Subcode 2
+...
+009 (1030144.000.000) 06/05 10:48:53 Job was aborted.
+	Job removed by SYSTEM_PERIODIC_REMOVE due to wall time exceeded allowed max.
+
+	Job terminated by itself at 2025-06-04T08:47:57Z (using method 0: OF_ITS_OWN_ACCORD).
+...

@@ -1,25 +1,72 @@
-%MSG-i AlpakaService:  (NoModuleName) 28-May-2025 12:24:33 CEST pre-events
+%MSG-i AlpakaService:  (NoModuleName) 04-Jun-2025 10:46:51 CEST pre-events
 AlpakaServiceSerialSync succesfully initialised.
 Found 1 device:
   - Intel(R) Xeon(R) Silver 4114 CPU @ 2.20GHz
 %MSG
-%MSG-i CUDAService:  (NoModuleName) 28-May-2025 12:24:33 CEST pre-events
-CUDA runtime version 12.8, driver version 12.4, NVIDIA driver version 550.163.01
+%MSG-i CUDAService:  (NoModuleName) 04-Jun-2025 10:46:51 CEST pre-events
+CUDA runtime version 12.8, driver version 12.9, NVIDIA driver version 575.51.03
 CUDA device 0: Tesla V100-PCIE-32GB (sm_70)
 %MSG
-%MSG-i AlpakaService:  (NoModuleName) 28-May-2025 12:24:33 CEST pre-events
+%MSG-i AlpakaService:  (NoModuleName) 04-Jun-2025 10:46:52 CEST pre-events
 AlpakaServiceCudaAsync succesfully initialised.
 Found 1 device:
   - Tesla V100-PCIE-32GB
 %MSG
-28-May-2025 12:24:38 CEST  Initiating request to open file root://eoscms.cern.ch//eos/cms/store/relval/CMSSW_14_0_0_pre2/RelValTTbar_14TeV/GEN-SIM-DIGI-RAW/PU_133X_mcRun4_realistic_v1_STD_2026D98_PU200_RV229-v1/2580000/0b2b0b0b-f312-48a8-9d46-ccbadc69bbfd.root
-28-May-2025 12:25:30 CEST  Successfully opened file root://eoscms.cern.ch//eos/cms/store/relval/CMSSW_14_0_0_pre2/RelValTTbar_14TeV/GEN-SIM-DIGI-RAW/PU_133X_mcRun4_realistic_v1_STD_2026D98_PU200_RV229-v1/2580000/0b2b0b0b-f312-48a8-9d46-ccbadc69bbfd.root
-28-May-2025 12:25:32 CEST  Closed file root://eoscms.cern.ch//eos/cms/store/relval/CMSSW_14_0_0_pre2/RelValTTbar_14TeV/GEN-SIM-DIGI-RAW/PU_133X_mcRun4_realistic_v1_STD_2026D98_PU200_RV229-v1/2580000/0b2b0b0b-f312-48a8-9d46-ccbadc69bbfd.root
------ Begin Fatal Exception 28-May-2025 12:25:32 CEST-----------------------
-An exception of category 'StdException' occurred while
-   [0] Constructing the EventProcessor
-   [1] Constructing module: class=Phase2RawToClusterProducer@alpaka label='Unpacker'
-Exception Message:
-A std::exception was thrown.
-/cvmfs/cms.cern.ch/el9_amd64_gcc12/external/alpaka/1.2.0-ce4b840cb6308c9be80d192f663d60d7/include/alpaka/queue/cuda_hip/QueueUniformCudaHipRt.hpp(50) 'TApi::setDevice(m_dev.getNativeHandle())' returned error  : 'cudaErrorInvalidDevice': 'invalid device ordinal'!
------ End Fatal Exception -------------------------------------------------
+04-Jun-2025 10:46:54 CEST  Initiating request to open file root://eoscms.cern.ch//eos/cms/store/relval/CMSSW_14_0_0_pre2/RelValTTbar_14TeV/GEN-SIM-DIGI-RAW/PU_133X_mcRun4_realistic_v1_STD_2026D98_PU200_RV229-v1/2580000/0b2b0b0b-f312-48a8-9d46-ccbadc69bbfd.root
+04-Jun-2025 10:47:36 CEST  Successfully opened file root://eoscms.cern.ch//eos/cms/store/relval/CMSSW_14_0_0_pre2/RelValTTbar_14TeV/GEN-SIM-DIGI-RAW/PU_133X_mcRun4_realistic_v1_STD_2026D98_PU200_RV229-v1/2580000/0b2b0b0b-f312-48a8-9d46-ccbadc69bbfd.root
+Begin processing the 1st record. Run 1, Event 9502, LumiSection 96 on stream 0 at 04-Jun-2025 10:47:46.170 CEST
+04-Jun-2025 10:47:46 CEST  Closed file root://eoscms.cern.ch//eos/cms/store/relval/CMSSW_14_0_0_pre2/RelValTTbar_14TeV/GEN-SIM-DIGI-RAW/PU_133X_mcRun4_realistic_v1_STD_2026D98_PU200_RV229-v1/2580000/0b2b0b0b-f312-48a8-9d46-ccbadc69bbfd.root
+TimeReport> Time report complete in 100.002 seconds
+ Time Summary: 
+ - Min event:   0.681467
+ - Max event:   0.681467
+ - Avg event:   0.681467
+ - Total loop:  8.87131
+ - Total init:  91.1311
+ - Total job:   100.002
+ - Total EventSetup: 6.73476
+ - Total non-module: 0.0846858
+ Event Throughput: 0.112723 ev/s
+ CPU Summary: 
+ - Total loop:     5.59379
+ - Total init:     44.4362
+ - Total extra:    0
+ - Total children: 0.340471
+ - Total job:      50.03
+ Processing Summary: 
+ - Number of Events:  1
+ - Number of Global Begin Lumi Calls:  1
+ - Number of Global Begin Run Calls: 1
+
+/cvmfs/cms.cern.ch/el9_amd64_gcc12/external/alpaka/1.2.0-ce4b840cb6308c9be80d192f663d60d7/include/alpaka/event/EventUniformCudaHipRt.hpp(66) 'TApi::eventDestroy(m_UniformCudaHipEvent)' returned error  : 'cudaErrorIllegalAddress': 'an illegal memory access was encountered'!
+/cvmfs/cms.cern.ch/el9_amd64_gcc12/external/alpaka/1.2.0-ce4b840cb6308c9be80d192f663d60d7/include/alpaka/mem/buf/BufUniformCudaHipRt.hpp(266) 'TApi::free(ptr)' returned error  : 'cudaErrorIllegalAddress': 'an illegal memory access was encountered'!
+/cvmfs/cms.cern.ch/el9_amd64_gcc12/external/alpaka/1.2.0-ce4b840cb6308c9be80d192f663d60d7/include/alpaka/mem/buf/BufUniformCudaHipRt.hpp(356) 'TApi::hostFree(ptr)' returned error  : 'cudaErrorIllegalAddress': 'an illegal memory access was encountered'!
+/cvmfs/cms.cern.ch/el9_amd64_gcc12/external/alpaka/1.2.0-ce4b840cb6308c9be80d192f663d60d7/include/alpaka/queue/cuda_hip/QueueUniformCudaHipRt.hpp(74) 'TApi::streamSynchronize(m_UniformCudaHipQueue)' returned error  : 'cudaErrorIllegalAddress': 'an illegal memory access was encountered'!
+/cvmfs/cms.cern.ch/el9_amd64_gcc12/external/alpaka/1.2.0-ce4b840cb6308c9be80d192f663d60d7/include/alpaka/queue/cuda_hip/QueueUniformCudaHipRt.hpp(75) 'TApi::streamDestroy(m_UniformCudaHipQueue)' returned error  : 'cudaErrorIllegalAddress': 'an illegal memory access was encountered'!
+/cvmfs/cms.cern.ch/el9_amd64_gcc12/external/alpaka/1.2.0-ce4b840cb6308c9be80d192f663d60d7/include/alpaka/event/EventUniformCudaHipRt.hpp(66) 'TApi::eventDestroy(m_UniformCudaHipEvent)' returned error  : 'cudaErrorIllegalAddress': 'an illegal memory access was encountered'!
+/cvmfs/cms.cern.ch/el9_amd64_gcc12/external/alpaka/1.2.0-ce4b840cb6308c9be80d192f663d60d7/include/alpaka/mem/buf/BufUniformCudaHipRt.hpp(266) 'TApi::free(ptr)' returned error  : 'cudaErrorIllegalAddress': 'an illegal memory access was encountered'!
+/cvmfs/cms.cern.ch/el9_amd64_gcc12/external/alpaka/1.2.0-ce4b840cb6308c9be80d192f663d60d7/include/alpaka/event/EventUniformCudaHipRt.hpp(66) 'TApi::eventDestroy(m_UniformCudaHipEvent)' returned error  : 'cudaErrorIllegalAddress': 'an illegal memory access was encountered'!
+/cvmfs/cms.cern.ch/el9_amd64_gcc12/external/alpaka/1.2.0-ce4b840cb6308c9be80d192f663d60d7/include/alpaka/mem/buf/BufUniformCudaHipRt.hpp(266) 'TApi::free(ptr)' returned error  : 'cudaErrorIllegalAddress': 'an illegal memory access was encountered'!
+/cvmfs/cms.cern.ch/el9_amd64_gcc12/external/alpaka/1.2.0-ce4b840cb6308c9be80d192f663d60d7/include/alpaka/event/EventUniformCudaHipRt.hpp(66) 'TApi::eventDestroy(m_UniformCudaHipEvent)' returned error  : 'cudaErrorIllegalAddress': 'an illegal memory access was encountered'!
+/cvmfs/cms.cern.ch/el9_amd64_gcc12/external/alpaka/1.2.0-ce4b840cb6308c9be80d192f663d60d7/include/alpaka/mem/buf/BufUniformCudaHipRt.hpp(266) 'TApi::free(ptr)' returned error  : 'cudaErrorIllegalAddress': 'an illegal memory access was encountered'!
+/data/cmsbld/jenkins/workspace/auto-builds/CMSSW_15_0_4-el9_amd64_gcc12/build/CMSSW_15_0_4-build/el9_amd64_gcc12/external/alpaka/1.2.0-ce4b840cb6308c9be80d192f663d60d7/include/alpaka/queue/cuda_hip/QueueUniformCudaHipRt.hpp(74) 'TApi::streamSynchronize(m_UniformCudaHipQueue)' returned error  : 'cudaErrorIllegalAddress': 'an illegal memory access was encountered'!
+/data/cmsbld/jenkins/workspace/auto-builds/CMSSW_15_0_4-el9_amd64_gcc12/build/CMSSW_15_0_4-build/el9_amd64_gcc12/external/alpaka/1.2.0-ce4b840cb6308c9be80d192f663d60d7/include/alpaka/queue/cuda_hip/QueueUniformCudaHipRt.hpp(75) 'TApi::streamDestroy(m_UniformCudaHipQueue)' returned error  : 'cudaErrorIllegalAddress': 'an illegal memory access was encountered'!
+/data/cmsbld/jenkins/workspace/auto-builds/CMSSW_15_0_4-el9_amd64_gcc12/build/CMSSW_15_0_4-build/el9_amd64_gcc12/external/alpaka/1.2.0-ce4b840cb6308c9be80d192f663d60d7/include/alpaka/event/EventUniformCudaHipRt.hpp(66) 'TApi::eventDestroy(m_UniformCudaHipEvent)' returned error  : 'cudaErrorIllegalAddress': 'an illegal memory access was encountered'!
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  
+src/HeterogeneousCore/CUDAServices/plugins/CUDAService.cc, line 433:
+cudaCheck(cudaDeviceSynchronize());
+cudaErrorIllegalAddress: an illegal memory access was encountered
+
+
+
+A fatal system signal has occurred: abort signal
+The following is the call stack containing the origin of the signal.
+
+
+Current Modules:
+
+Module: none (crashed)
+
+A fatal system signal has occurred: abort signal
+/pool/condor/dir_844583/run_slink.sh: line 14:   230 Aborted                 (core dumped) cmsRun /afs/cern.ch/user/m/mmomed/unpacker-13-05-25/CMSSW_15_0_4/src/EventFilter/Phase2TrackerRawToDigi/test/SLinkProducerAndUnpacker_alpaka_cfg.py
