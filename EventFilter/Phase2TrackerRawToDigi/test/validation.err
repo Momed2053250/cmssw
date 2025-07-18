@@ -1,0 +1,192 @@
+SCRAM fatal: Unable to locate the top of local release. Please run this command from a SCRAM-based area.
+%MSG-i ThreadStreamSetup:  (NoModuleName) 17-Jul-2025 14:49:21 CEST pre-events
+setting # threads 4
+setting # streams 2
+%MSG
+%MSG-i Root_Information:  (NoModuleName) RTaskArenaWrapper()  17-Jul-2025 14:49:32 CEST pre-events
+CPU Bandwith Control Active. Proceeding with 2 threads accordingly
+%MSG
+%MSG-i CUDAService:  (NoModuleName) 17-Jul-2025 14:49:32 CEST pre-events
+CUDA runtime version 12.8, driver version 12.9, NVIDIA driver version 575.57.08
+CUDA device 0: Tesla V100-PCIE-32GB (sm_70)
+%MSG
+%MSG-i AlpakaService:  (NoModuleName) 17-Jul-2025 14:49:32 CEST pre-events
+AlpakaServiceSerialSync succesfully initialised.
+Found 1 device:
+  - Intel(R) Xeon(R) Silver 4114 CPU @ 2.20GHz
+%MSG
+%MSG-i AlpakaService:  (NoModuleName) 17-Jul-2025 14:49:32 CEST pre-events
+AlpakaServiceCudaAsync succesfully initialised.
+Found 1 device:
+  - Tesla V100-PCIE-32GB
+%MSG
+17-Jul-2025 14:49:37 CEST  Initiating request to open file root://eoscms.cern.ch//eos/cms/store/relval/CMSSW_14_0_0_pre2/RelValTTbar_14TeV/GEN-SIM-DIGI-RAW/PU_133X_mcRun4_realistic_v1_STD_2026D98_PU200_RV229-v1/2580000/0b2b0b0b-f312-48a8-9d46-ccbadc69bbfd.root
+17-Jul-2025 14:50:23 CEST  Successfully opened file root://eoscms.cern.ch//eos/cms/store/relval/CMSSW_14_0_0_pre2/RelValTTbar_14TeV/GEN-SIM-DIGI-RAW/PU_133X_mcRun4_realistic_v1_STD_2026D98_PU200_RV229-v1/2580000/0b2b0b0b-f312-48a8-9d46-ccbadc69bbfd.root
+Begin processing the 1st record. Run 1, Event 9502, LumiSection 96 on stream 1 at 17-Jul-2025 14:50:35.402 CEST
+17-Jul-2025 14:50:36 CEST  Closed file root://eoscms.cern.ch//eos/cms/store/relval/CMSSW_14_0_0_pre2/RelValTTbar_14TeV/GEN-SIM-DIGI-RAW/PU_133X_mcRun4_realistic_v1_STD_2026D98_PU200_RV229-v1/2580000/0b2b0b0b-f312-48a8-9d46-ccbadc69bbfd.root
+TimeReport> Time report complete in 85.0026 seconds
+ Time Summary: 
+ - Min event:   0.879404
+ - Max event:   0.879404
+ - Avg event:   0.879404
+ - Total loop:  12.073
+ - Total init:  72.9296
+ - Total job:   85.0026
+ - Total EventSetup: 5.05099
+ - Total non-module: 34.5139
+ Event Throughput: 0.0828292 ev/s
+ CPU Summary: 
+ - Total loop:     6.76964
+ - Total init:     47.2202
+ - Total extra:    0
+ - Total children: 0.385323
+ - Total job:      53.9899
+ Processing Summary: 
+ - Number of Events:  1
+ - Number of Global Begin Lumi Calls:  1
+ - Number of Global Begin Run Calls: 1
+
+17-Jul-2025 14:50:44 CEST  Initiating request to open file root://eoscms.cern.ch//eos/cms/store/relval/CMSSW_14_0_0_pre2/RelValTTbar_14TeV/GEN-SIM-DIGI-RAW/PU_133X_mcRun4_realistic_v1_STD_2026D98_PU200_RV229-v1/2580000/0b2b0b0b-f312-48a8-9d46-ccbadc69bbfd.root
+17-Jul-2025 14:51:28 CEST  Successfully opened file root://eoscms.cern.ch//eos/cms/store/relval/CMSSW_14_0_0_pre2/RelValTTbar_14TeV/GEN-SIM-DIGI-RAW/PU_133X_mcRun4_realistic_v1_STD_2026D98_PU200_RV229-v1/2580000/0b2b0b0b-f312-48a8-9d46-ccbadc69bbfd.root
+Begin processing the 1st record. Run 1, Event 9502, LumiSection 96 on stream 0 at 17-Jul-2025 14:51:35.745 CEST
+17-Jul-2025 14:51:36 CEST  Closed file root://eoscms.cern.ch//eos/cms/store/relval/CMSSW_14_0_0_pre2/RelValTTbar_14TeV/GEN-SIM-DIGI-RAW/PU_133X_mcRun4_realistic_v1_STD_2026D98_PU200_RV229-v1/2580000/0b2b0b0b-f312-48a8-9d46-ccbadc69bbfd.root
+
+TrigReport ---------- Event  Summary ------------
+TrigReport Events total = 1 passed = 1 failed = 0
+
+TrigReport ---------- Path   Summary ------------
+TrigReport  Trig Bit#   Executed     Passed     Failed      Error Name
+
+
+TrigReport -------End-Path   Summary ------------
+TrigReport  Trig Bit#   Executed     Passed     Failed      Error Name
+TrigReport     0    0          1          1          0          0 p
+
+
+TrigReport ------ Modules in End-Path: p ------------
+TrigReport  Trig Bit#    Visited     Passed     Failed      Error Name
+TrigReport     0    0          1          1          0          0 Phase2TrackerDumpClusters
+
+
+TrigReport ---------- Module Summary ------------
+TrigReport    Visited   Executed     Passed     Failed      Error Name
+TrigReport          1          1          1          0          0 Phase2TrackerDumpClusters
+
+
+TimeReport ---------- Event  Summary ---[sec]----
+TimeReport       event loop CPU/event = 5.981861
+TimeReport      event loop Real/event = 6.859614
+TimeReport     sum Streams Real/event = 1.067752
+TimeReport efficiency CPU/Real/thread = 0.872040
+
+TimeReport ---------- Path   Summary ---[Real sec]----
+TimeReport  per event     per exec  Name
+
+TimeReport  per event     per exec  Name
+
+TimeReport -------End-Path   Summary ---[Real sec]----
+TimeReport  per event     per exec  Name
+TimeReport   0.641060     0.641060  p
+
+TimeReport  per event     per exec  Name
+
+TimeReport ------ Modules in End-Path: p ---[Real sec]----
+TimeReport  per event    per visit  Name
+TimeReport   0.623950     0.623950  Phase2TrackerDumpClusters
+
+TimeReport  per event    per visit  Name
+
+TimeReport ---------- Module Summary ---[Real sec]----
+TimeReport  per event     per exec    per visit  Name
+TimeReport   0.623950     0.623950     0.623950  Phase2TrackerDumpClusters
+
+TimeReport  per event     per exec    per visit  Name
+
+T---Report end!
+
+
+17-Jul-2025 14:51:42 CEST  Initiating request to open file file:raw2clusters.root
+17-Jul-2025 14:51:43 CEST  Successfully opened file file:raw2clusters.root
+Begin processing the 1st record. Run 1, Event 9502, LumiSection 96 on stream 0 at 17-Jul-2025 14:51:51.552 CEST
+----- Begin Fatal Exception 17-Jul-2025 14:51:51 CEST-----------------------
+An exception of category 'ProductNotFound' occurred while
+   [0] Processing  Event run: 1 lumi: 96 event: 9502 stream: 0
+   [1] Running path 'p'
+   [2] Calling method for module Phase2TrackerDumpClusters/'Phase2TrackerDumpClusters'
+Exception Message:
+Principal::getByToken: Found zero products matching all criteria
+Looking for type: edmNew::DetSetVector<Phase2TrackerCluster1D>
+Looking for module label: Unpacker
+Looking for productInstanceName: 
+Looking for process: PACKANDUNPACK
+   Additional Info:
+      [a] If you wish to continue processing events after a ProductNotFound exception,
+add "TryToContinue = cms.untracked.vstring('ProductNotFound')" to the "options" PSet in the configuration.
+
+----- End Fatal Exception -------------------------------------------------
+17-Jul-2025 14:51:51 CEST  Closed file file:raw2clusters.root
+
+TrigReport ---------- Event  Summary ------------
+TrigReport Events total = 1 passed = 1 failed = 0
+
+TrigReport ---------- Path   Summary ------------
+TrigReport  Trig Bit#   Executed     Passed     Failed      Error Name
+
+
+TrigReport -------End-Path   Summary ------------
+TrigReport  Trig Bit#   Executed     Passed     Failed      Error Name
+TrigReport     0    0          1          0          0          1 p
+
+
+TrigReport ------ Modules in End-Path: p ------------
+TrigReport  Trig Bit#    Visited     Passed     Failed      Error Name
+TrigReport     0    0          1          0          0          1 Phase2TrackerDumpClusters
+
+
+TrigReport ---------- Module Summary ------------
+TrigReport    Visited   Executed     Passed     Failed      Error Name
+TrigReport          1          1          0          0          1 Phase2TrackerDumpClusters
+
+
+TimeReport ---------- Event  Summary ---[sec]----
+TimeReport       event loop CPU/event = 5.303538
+TimeReport      event loop Real/event = 8.279494
+TimeReport     sum Streams Real/event = 0.002758
+TimeReport efficiency CPU/Real/thread = 0.640563
+
+TimeReport ---------- Path   Summary ---[Real sec]----
+TimeReport  per event     per exec  Name
+
+TimeReport  per event     per exec  Name
+
+TimeReport -------End-Path   Summary ---[Real sec]----
+TimeReport  per event     per exec  Name
+TimeReport   0.001697     0.001697  p
+
+TimeReport  per event     per exec  Name
+
+TimeReport ------ Modules in End-Path: p ---[Real sec]----
+TimeReport  per event    per visit  Name
+TimeReport   0.001541     0.001541  Phase2TrackerDumpClusters
+
+TimeReport  per event    per visit  Name
+
+TimeReport ---------- Module Summary ---[Real sec]----
+TimeReport  per event     per exec    per visit  Name
+TimeReport   0.001541     0.001541     0.001541  Phase2TrackerDumpClusters
+
+TimeReport  per event     per exec    per visit  Name
+
+T---Report end!
+
+
+Info in <TCanvas::MakeDefCanvas>:  created default TCanvas with name c1
+Info in <TCanvas::Print>: pdf file validation_plots/2025-07-17_14-51-57_dtc208/clusterR_isPSModulePixel.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-07-17_14-51-57_dtc208/clusterZ_isPSModulePixel.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-07-17_14-51-57_dtc208/clusterSize_isPSModulePixel.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-07-17_14-51-57_dtc208/clusterR_isPSModuleStrip.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-07-17_14-51-57_dtc208/clusterZ_isPSModuleStrip.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-07-17_14-51-57_dtc208/clusterSize_isPSModuleStrip.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-07-17_14-51-57_dtc208/clusterR_is2SModule.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-07-17_14-51-57_dtc208/clusterZ_is2SModule.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-07-17_14-51-57_dtc208/clusterSize_is2SModule.pdf has been created
