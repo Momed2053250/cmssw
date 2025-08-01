@@ -1,0 +1,179 @@
+SCRAM fatal: Unable to locate the top of local release. Please run this command from a SCRAM-based area.
+%MSG-i ThreadStreamSetup:  (NoModuleName) 24-Jul-2025 18:36:47 CEST pre-events
+setting # threads 4
+setting # streams 2
+%MSG
+%MSG-i Root_Information:  (NoModuleName) RTaskArenaWrapper()  24-Jul-2025 18:36:55 CEST pre-events
+CPU Bandwith Control Active. Proceeding with 2 threads accordingly
+%MSG
+%MSG-i CUDAService:  (NoModuleName) 24-Jul-2025 18:36:55 CEST pre-events
+CUDA runtime version 12.8, driver version 12.9, NVIDIA driver version 575.51.03
+CUDA device 0: Tesla V100S-PCIE-32GB (sm_70)
+%MSG
+%MSG-i AlpakaService:  (NoModuleName) 24-Jul-2025 18:36:55 CEST pre-events
+AlpakaServiceSerialSync succesfully initialised.
+Found 1 device:
+  - Intel(R) Xeon(R) Silver 4216 CPU @ 2.10GHz
+%MSG
+%MSG-i AlpakaService:  (NoModuleName) 24-Jul-2025 18:36:55 CEST pre-events
+AlpakaServiceCudaAsync succesfully initialised.
+Found 1 device:
+  - Tesla V100S-PCIE-32GB
+%MSG
+24-Jul-2025 18:36:58 CEST  Initiating request to open file root://eoscms.cern.ch//eos/cms/store/relval/CMSSW_14_0_0_pre2/RelValTTbar_14TeV/GEN-SIM-DIGI-RAW/PU_133X_mcRun4_realistic_v1_STD_2026D98_PU200_RV229-v1/2580000/0b2b0b0b-f312-48a8-9d46-ccbadc69bbfd.root
+24-Jul-2025 18:37:40 CEST  Successfully opened file root://eoscms.cern.ch//eos/cms/store/relval/CMSSW_14_0_0_pre2/RelValTTbar_14TeV/GEN-SIM-DIGI-RAW/PU_133X_mcRun4_realistic_v1_STD_2026D98_PU200_RV229-v1/2580000/0b2b0b0b-f312-48a8-9d46-ccbadc69bbfd.root
+Begin processing the 1st record. Run 1, Event 9502, LumiSection 96 on stream 1 at 24-Jul-2025 18:37:46.759 CEST
+24-Jul-2025 18:37:47 CEST  Closed file root://eoscms.cern.ch//eos/cms/store/relval/CMSSW_14_0_0_pre2/RelValTTbar_14TeV/GEN-SIM-DIGI-RAW/PU_133X_mcRun4_realistic_v1_STD_2026D98_PU200_RV229-v1/2580000/0b2b0b0b-f312-48a8-9d46-ccbadc69bbfd.root
+TimeReport> Time report complete in 69.3793 seconds
+ Time Summary: 
+ - Min event:   0.659531
+ - Max event:   0.659531
+ - Avg event:   0.659531
+ - Total loop:  6.90631
+ - Total init:  62.473
+ - Total job:   69.3793
+ - Total EventSetup: 4.6745
+ - Total non-module: 20.1979
+ Event Throughput: 0.144795 ev/s
+ CPU Summary: 
+ - Total loop:     5.79828
+ - Total init:     40.7491
+ - Total extra:    0
+ - Total children: 0.263477
+ - Total job:      46.5476
+ Processing Summary: 
+ - Number of Events:  1
+ - Number of Global Begin Lumi Calls:  1
+ - Number of Global Begin Run Calls: 1
+
+24-Jul-2025 18:37:51 CEST  Initiating request to open file root://eoscms.cern.ch//eos/cms/store/relval/CMSSW_14_0_0_pre2/RelValTTbar_14TeV/GEN-SIM-DIGI-RAW/PU_133X_mcRun4_realistic_v1_STD_2026D98_PU200_RV229-v1/2580000/0b2b0b0b-f312-48a8-9d46-ccbadc69bbfd.root
+24-Jul-2025 18:38:26 CEST  Successfully opened file root://eoscms.cern.ch//eos/cms/store/relval/CMSSW_14_0_0_pre2/RelValTTbar_14TeV/GEN-SIM-DIGI-RAW/PU_133X_mcRun4_realistic_v1_STD_2026D98_PU200_RV229-v1/2580000/0b2b0b0b-f312-48a8-9d46-ccbadc69bbfd.root
+Begin processing the 1st record. Run 1, Event 9502, LumiSection 96 on stream 0 at 24-Jul-2025 18:38:33.020 CEST
+24-Jul-2025 18:38:33 CEST  Closed file root://eoscms.cern.ch//eos/cms/store/relval/CMSSW_14_0_0_pre2/RelValTTbar_14TeV/GEN-SIM-DIGI-RAW/PU_133X_mcRun4_realistic_v1_STD_2026D98_PU200_RV229-v1/2580000/0b2b0b0b-f312-48a8-9d46-ccbadc69bbfd.root
+
+TrigReport ---------- Event  Summary ------------
+TrigReport Events total = 1 passed = 1 failed = 0
+
+TrigReport ---------- Path   Summary ------------
+TrigReport  Trig Bit#   Executed     Passed     Failed      Error Name
+
+
+TrigReport -------End-Path   Summary ------------
+TrigReport  Trig Bit#   Executed     Passed     Failed      Error Name
+TrigReport     0    0          1          1          0          0 p
+
+
+TrigReport ------ Modules in End-Path: p ------------
+TrigReport  Trig Bit#    Visited     Passed     Failed      Error Name
+TrigReport     0    0          1          1          0          0 Phase2TrackerDumpClusters
+
+
+TrigReport ---------- Module Summary ------------
+TrigReport    Visited   Executed     Passed     Failed      Error Name
+TrigReport          1          1          1          0          0 Phase2TrackerDumpClusters
+
+
+TimeReport ---------- Event  Summary ---[sec]----
+TimeReport       event loop CPU/event = 5.112786
+TimeReport      event loop Real/event = 5.924512
+TimeReport     sum Streams Real/event = 0.772628
+TimeReport efficiency CPU/Real/thread = 0.862989
+
+TimeReport ---------- Path   Summary ---[Real sec]----
+TimeReport  per event     per exec  Name
+
+TimeReport  per event     per exec  Name
+
+TimeReport -------End-Path   Summary ---[Real sec]----
+TimeReport  per event     per exec  Name
+TimeReport   0.520440     0.520440  p
+
+TimeReport  per event     per exec  Name
+
+TimeReport ------ Modules in End-Path: p ---[Real sec]----
+TimeReport  per event    per visit  Name
+TimeReport   0.503675     0.503675  Phase2TrackerDumpClusters
+
+TimeReport  per event    per visit  Name
+
+TimeReport ---------- Module Summary ---[Real sec]----
+TimeReport  per event     per exec    per visit  Name
+TimeReport   0.503675     0.503675     0.503675  Phase2TrackerDumpClusters
+
+TimeReport  per event     per exec    per visit  Name
+
+T---Report end!
+
+
+24-Jul-2025 18:38:37 CEST  Initiating request to open file file:raw2clusters.root
+24-Jul-2025 18:38:38 CEST  Successfully opened file file:raw2clusters.root
+Begin processing the 1st record. Run 1, Event 9502, LumiSection 96 on stream 0 at 24-Jul-2025 18:38:43.108 CEST
+size of clusters: 0
+Number of clusters with size <= 8 and dtcID == 30: 0
+
+24-Jul-2025 18:38:43 CEST  Closed file file:raw2clusters.root
+
+TrigReport ---------- Event  Summary ------------
+TrigReport Events total = 1 passed = 1 failed = 0
+
+TrigReport ---------- Path   Summary ------------
+TrigReport  Trig Bit#   Executed     Passed     Failed      Error Name
+
+
+TrigReport -------End-Path   Summary ------------
+TrigReport  Trig Bit#   Executed     Passed     Failed      Error Name
+TrigReport     0    0          1          1          0          0 p
+
+
+TrigReport ------ Modules in End-Path: p ------------
+TrigReport  Trig Bit#    Visited     Passed     Failed      Error Name
+TrigReport     0    0          1          1          0          0 Phase2TrackerDumpClustersSoA
+
+
+TrigReport ---------- Module Summary ------------
+TrigReport    Visited   Executed     Passed     Failed      Error Name
+TrigReport          1          1          1          0          0 Phase2TrackerDumpClustersSoA
+
+
+TimeReport ---------- Event  Summary ---[sec]----
+TimeReport       event loop CPU/event = 4.471866
+TimeReport      event loop Real/event = 4.925012
+TimeReport     sum Streams Real/event = 0.089083
+TimeReport efficiency CPU/Real/thread = 0.907991
+
+TimeReport ---------- Path   Summary ---[Real sec]----
+TimeReport  per event     per exec  Name
+
+TimeReport  per event     per exec  Name
+
+TimeReport -------End-Path   Summary ---[Real sec]----
+TimeReport  per event     per exec  Name
+TimeReport   0.088623     0.088623  p
+
+TimeReport  per event     per exec  Name
+
+TimeReport ------ Modules in End-Path: p ---[Real sec]----
+TimeReport  per event    per visit  Name
+TimeReport   0.000112     0.000112  Phase2TrackerDumpClustersSoA
+
+TimeReport  per event    per visit  Name
+
+TimeReport ---------- Module Summary ---[Real sec]----
+TimeReport  per event     per exec    per visit  Name
+TimeReport   0.000112     0.000112     0.000112  Phase2TrackerDumpClustersSoA
+
+TimeReport  per event     per exec    per visit  Name
+
+T---Report end!
+
+
+Info in <TCanvas::MakeDefCanvas>:  created default TCanvas with name c1
+Info in <TCanvas::Print>: pdf file validation_plots/2025-07-24_18-38-46_dtc208_SoA/clusterR_isPSModulePixel.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-07-24_18-38-46_dtc208_SoA/clusterZ_isPSModulePixel.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-07-24_18-38-46_dtc208_SoA/clusterSize_isPSModulePixel.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-07-24_18-38-46_dtc208_SoA/clusterR_isPSModuleStrip.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-07-24_18-38-46_dtc208_SoA/clusterZ_isPSModuleStrip.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-07-24_18-38-46_dtc208_SoA/clusterSize_isPSModuleStrip.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-07-24_18-38-46_dtc208_SoA/clusterR_is2SModule.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-07-24_18-38-46_dtc208_SoA/clusterZ_is2SModule.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-07-24_18-38-46_dtc208_SoA/clusterSize_is2SModule.pdf has been created
