@@ -166,6 +166,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 							 OutView out,
 							 uint32_t* globalCounter
 							 ) const {
+
 						 // (A) Allocate ONE contiguous chunk of dynamic shared memory:
 						 uint8_t* smemBytes = alpaka::getDynSharedMem<uint8_t>(acc);
 						 uint32_t* smemWords = reinterpret_cast<uint32_t*>(smemBytes);
@@ -185,16 +186,21 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 						 // Track starting index for each channel pair
 						 uint32_t channelPairStartIdx = 0;
 						 if (cms::alpakatools::once_per_block(acc)) {
-							 channelPairStartIdx = alpaka::atomicAdd(acc, globalCounter, static_cast<uint32_t>(MaxStripClusters + MaxPixelClusters));
+							// channelPairStartIdx = alpaka::atomicAdd(acc, globalCounter, static_cast<uint32_t>(MaxStripClusters + MaxPixelClusters));
 						 }
+						
 						 alpaka::syncBlockThreads(acc);
 
 						 // Local counter for clusters within this channel pair
 						 uint32_t localClusterIdx = 0;
 
 						 // Iterate over each FED fragment ID in parallel
-						 for (auto frdId : cms::alpakatools::independent_groups(acc, (MAX_DTC_ID - MIN_DTC_ID) * SLINKS_PER_DTC)) {
+						 for (auto frdId : cms::alpakatools::independent_groups(acc, (MAX_DTC_ID - MIN_DTC_ID +1) * SLINKS_PER_DTC)) {
 							 if (sizes[frdId]  == 0 ) continue;  // Skip empty fragments
+							 //print the fedrawdata to see if it actually skipes the zeros
+#ifdef Debug_GPU	
+			printf("Processing FEDRawDataCollection[%u] with size: %lu\n", frdId, (unsigned long)sizes[frdId]);
+#endif
 							 // {
 								 const unsigned char* dataPtr = in + offsets[frdId];
 
@@ -206,7 +212,9 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 								 }
 								 alpaka::syncBlockThreads(acc);
 #ifdef Debug_GPU
-								 printf("headerWords[0] = %u\n", headerWords[0]);
+if (cms::alpakatools::once_per_block(acc)) {
+    printf("headerWords[0] = %u\n", headerWords[0]);
+}
 #endif
 
 								 // 2) Read offset words
@@ -218,7 +226,10 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 								 }
 								 alpaka::syncBlockThreads(acc);
 #ifdef Debug_GPU
-								 printf("offsetWords[0] = %u\n", offsetWords[0]);
+if (cms::alpakatools::once_per_block(acc)) {
+
+	printf("offsetWords[0] = %u\n", offsetWords[0]);
+}
 #endif
 
 								 // Unpack each channel
@@ -227,26 +238,35 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 									 if (iChannel % 2 == 0) {
 										 localClusterIdx = 0;
 									 }
-
 									 // Retrieve module type
 									 const unsigned CICs = CICs_PER_SLINK;
 									 unsigned flatIdx = frdId * CICs + iChannel;
 									 int thisDetId = detIdMap[flatIdx]; // Get the detId from the map
-									 int is2SModule = detIdxModuleTypeMap[flatIdx] == 1 ? 1 : 0;
+									 // FIXED: Use full enum check (undef=0, TwoS=1, PS=2)
+        int moduleType = detIdxModuleTypeMap[flatIdx];
+        bool is2SModule = (moduleType == 1); // TwoS
+        // FIXED: Skip undef (unconnected) modules to match CPU
+        if (moduleType == 0) continue; // undef -> skip
 #ifdef Debug_GPU
-									 if (is2SModule != 0) {
+if (cms::alpakatools::once_per_block(acc)) {
+									 
 										 printf("is2SModule is: %d\n", is2SModule);
-									 }
+}
 #endif
+
 									 // Compute byte index of channel header
 									 size_t offsetTableStart = (HEADER_N_LINES + MODULES_PER_SLINK) * N_BYTES_PER_WORD;
 									 int channelOffset16 = static_cast<int>(getOffsetForChannel(iChannel, offsetWords));
 #ifdef Debug_GPU
+if (cms::alpakatools::once_per_block(acc)) {
 									 printf("ChannelOffset16 is: %u\n", channelOffset16);
+									}
 #endif
 									 int idx = static_cast<int>(offsetTableStart + channelOffset16 * N_BYTES_PER_WORD);
 #ifdef Debug_GPU
+if (cms::alpakatools::once_per_block(acc)) {
 									 printf("idx is: %u\n", idx);
+}
 #endif
 
 									 // Read channel header and extract cluster counts
@@ -259,18 +279,23 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 									 unsigned int nLines = (numStripClusters + numPixelClusters > 0) ?
 										 int((numStripClusters * SS_CLUSTER_BITS + numPixelClusters * PX_CLUSTER_BITS) / N_BITS_PER_WORD) + 1 : 0;
 #ifdef Debug_GPU
+if (cms::alpakatools::once_per_block(acc)) {
 									 printf("n strip clusters are: %u\n", numStripClusters);
 									 printf("n pixel clusters are: %u\n", numPixelClusters);
+}
 #endif
 
 									 // Retrieve payload lines
 									 for (auto k : cms::alpakatools::independent_group_elements(acc, nLines)) {
 										 int byteIdx = getLineIndex(idx, k);
-										 lines[k] = readLine(dataPtr, byteIdx);  //RACE DETECTED  
+										 lines[k] = readLine(dataPtr, byteIdx);    
 										 // print the lines
 #ifdef Debug_GPU
-										 if (k == 0)  // Match CPU: only print the first line
-											 printf("Lines[0] = %u\n", lines[0]);
+if (cms::alpakatools::once_per_block(acc)) {
+
+	//if (k == 0)  // Match CPU: only print the first line
+		printf("Lines[0] = %u\n", lines[0]);
+}
 #endif
 									 }
 									 alpaka::syncBlockThreads(acc);
@@ -286,36 +311,40 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 											 readPayload(stripClusterWords, lines, numStripClusters, nAvailableBits, iLine, bitsToRead,
 													 nFullClustersStrip, SS_CLUSTER_BITS, SS_CLUSTER_WORD_MASK, false);
 										 }
+									 alpaka::syncBlockThreads(acc);
 									 } else {
 										 if (cms::alpakatools::once_per_block(acc)) {
 											 readPayload(stripClusterWords, lines, numStripClusters, nAvailableBits, iLine, bitsToRead,
 													 nFullClustersStrip, SS_CLUSTER_BITS, SS_CLUSTER_WORD_MASK, false);
 											 // print out the strip cluster words
 #ifdef Debug_GPU
-											 printf("Strip Cluster words: \n");
-											 for (unsigned int i = 0; i < numStripClusters; ++i) {
-												 printf("%u ", stripClusterWords[i]);
-											 }
-											 printf("\n");
+	printf("Strip Cluster words: \n");
+	for (unsigned int i = 0; i < numStripClusters; ++i) {
+		printf("%u ", stripClusterWords[i]);
+	}
+	printf("\n");
+
 #endif
 											 readPayload(pixelClusterWords, lines, numPixelClusters, nAvailableBits, iLine, bitsToRead,
 													 nFullClustersPix, PX_CLUSTER_BITS, PX_CLUSTER_WORD_MASK, true, nFullClustersStrip);
 											 // print out the pixel cluster words
 #ifdef Debug_GPU
-											 printf("Pixel Cluster words: \n");
-											 for (unsigned int i = 0; i < numPixelClusters; ++i) {
-												 printf("%u ", pixelClusterWords[i]);		
-											 }
-											 printf("\n");
+
+	printf("Pixel Cluster words: \n");
+	for (unsigned int i = 0; i < numPixelClusters; ++i) {
+		printf("%u ", pixelClusterWords[i]);		
+	}
+	printf("\n");
 #endif
 										 }
-									 }
 									 alpaka::syncBlockThreads(acc);
+
+									 }
 
 									 // Unpack clusters and store in output SoA
 									 if (is2SModule) {
 										#ifdef Debug_GPU
-											printf("Unpacking for 2S module\n");
+											printf("Unpacking for /*2S module\n");
 										#endif
 											for (auto icluster : cms::alpakatools::independent_group_elements(acc, numStripClusters)) {
 												uint32_t word = stripClusterWords[icluster];
@@ -324,6 +353,10 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 												bool seed = (word >> (SS_CLUSTER_BITS - CHIP_ID_BITS - SCLUSTER_ADDRESS_BITS_2S)) & IS_SEED_SENSOR_MASK;
 												uint32_t w = word & WIDTH_MAX_VALUE;
 												if (w == 0) w = 8;
+												// print only w values 
+#ifdef Debug_GPU
+												printf("Unpacking values 2S: w = %u\n", w);
+#endif
 										
 												uint32_t outIdx = channelPairStartIdx + localClusterIdx;
 												if (outIdx < MaxTotalClusters) {
@@ -344,6 +377,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 												}
 												localClusterIdx++;
 											}
+									 alpaka::syncBlockThreads(acc);
 										} else {
 											// PS strip clusters
 											for (auto icluster : cms::alpakatools::independent_group_elements(acc, numStripClusters)) {
@@ -353,7 +387,10 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 												uint32_t w = (word >> (SS_CLUSTER_BITS - CHIP_ID_BITS - SCLUSTER_ADDRESS_BITS_PS - WIDTH_BITS)) & WIDTH_MAX_VALUE;
 												uint32_t mipBit = word & MIP_BITS_MASK;
 												if (w == 0) w = 8;
-										
+										// print only w values
+#ifdef Debug_GPU
+												printf("Unpacking values S on PS: w = %u\n", w);
+#endif
 												uint32_t outIdx = channelPairStartIdx + localClusterIdx;
 												if (outIdx < MaxTotalClusters) {
 													out[outIdx].strip() = STRIPS_PER_SSA * chip + addr;  // Maps to x
@@ -377,6 +414,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 												}
 												localClusterIdx++;
 											}
+									 alpaka::syncBlockThreads(acc);
 											// PS pixel clusters
 											for (auto icluster : cms::alpakatools::independent_group_elements(acc, numPixelClusters)) {
 												uint32_t word = pixelClusterWords[icluster];
@@ -385,7 +423,10 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 												uint32_t w = (word >> (PX_CLUSTER_BITS - CHIP_ID_BITS - SCLUSTER_ADDRESS_BITS_PS - WIDTH_BITS)) & WIDTH_MAX_VALUE;
 												uint32_t z = word & PS_Z_BITS_MASK;
 												if (w == 0) w = 8;
-										
+										// print only w values
+#ifdef Debug_GPU
+												printf("Unpacking values S on PS: w = %u\n", w);
+#endif
 												uint32_t outIdx = channelPairStartIdx + localClusterIdx;
 												if (outIdx < MaxTotalClusters) {
 													out[outIdx].strip() = STRIPS_PER_SSA * chip + addr;  // Maps to x
@@ -406,9 +447,10 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 												}
 												localClusterIdx++;
 											}
-										}
 										alpaka::syncBlockThreads(acc);
+										} 
 								 } // end loop on channels for this dtc
+								 alpaka::syncBlockThreads(acc);
 							 //} // end fed data size > 0
 						 } // independatn group elements 
 						 alpaka::syncBlockThreads(acc);
@@ -431,11 +473,16 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 			uint32_t stackMapSize,  // Add size parameter
 			Phase2RawToCluster::ClusterPropDeviceCollection::View out,
 			uint32_t* globalCounter) {
-		const uint32_t threadsPerBlock = 128;
+		//const uint32_t threadsPerBlock = 128;
 		// +1 added for normalization of the 3D indexing
 		//const uint32_t blocks = (MAX_DTC_ID - MIN_DTC_ID + 1) * SLINKS_PER_DTC ;
+			// new
+	const uint32_t threadsPerBlock = 128;
+	const uint32_t totalChannels = (MAX_DTC_ID - MIN_DTC_ID) * SLINKS_PER_DTC * CICs_PER_SLINK;
+	const uint32_t blocks = (totalChannels + threadsPerBlock - 1) / threadsPerBlock;
+	//end new 
 		// removing +1
-		const uint32_t blocks = (MAX_DTC_ID - MIN_DTC_ID) * SLINKS_PER_DTC ;
+		//const uint32_t blocks = (MAX_DTC_ID - MIN_DTC_ID) * SLINKS_PER_DTC ;
 		//Adjust the work division to account for channel-level parallelism:
 /*		const uint32_t threadsPerBlock = 128;
 		const uint32_t blocks = ((MAX_DTC_ID - MIN_DTC_ID) * SLINKS_PER_DTC * CICs_PER_SLINK + threadsPerBlock - 1) / threadsPerBlock;

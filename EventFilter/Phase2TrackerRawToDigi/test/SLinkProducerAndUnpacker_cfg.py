@@ -92,8 +92,8 @@ process.Analyzer = cms.EDAnalyzer("RawAnalyzer",
     fedRawDataCollection = cms.InputTag("Packer"),
 )
 
-process.Unpacker = cms.EDProducer("Phase2RawToClusterProducer@alpaka",
-#process.Unpacker = cms.EDProducer("alpaka_serial_sync::Phase2RawToClusterProducer",
+#process.Unpacker = cms.EDProducer("Phase2RawToClusterProducer@alpaka",
+process.Unpacker = cms.EDProducer("alpaka_serial_sync::Phase2RawToClusterProducer",
 #process.Unpacker = cms.EDProducer("alpaka_cuda_async::Phase2RawToClusterProducer",
 #process.Unpacker = cms.EDProducer("alpaka_rocm_async::Phase2RawToClusterProducer",        
     fedRawDataCollection = cms.InputTag("Packer"),

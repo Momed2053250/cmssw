@@ -219,8 +219,9 @@ alpaka::wait(myqueue);
 							<< "\t -> detId:" << thisDetId;
 						// check is 2S or PS
 						is2SModule = trackerGeometry_->getDetectorType( stackMap_[thisDetId].first) == TrackerGeometry::ModuleType::Ph2SS;
-						//std::cout << "is2SModule outside if is: " << is2SModule << "\n";
+						//std::cout << "is2SModule is:" << is2SModule << "\n"; // here it is correctly calculated 
 						detIdxModuleTypeMap_[DetIdx] = is2SModule ? WhichModule::TwoS : WhichModule::PS;	
+						
 #ifdef Debug_CPU
 						std::cout << "Mapped dtcID=" << dtcID << ", iSlink=" << iSlink << ", iChannel=" << iChannel 
 							<< ", gbt_id=" << gbt_id << ", detId=" << thisDetId << ", stackIdx=" << stackIdx 
@@ -242,7 +243,9 @@ alpaka::wait(myqueue);
 			} // slink 
 		} // det id 
 // copy detidmap to the device buffer
-constexpr unsigned int M = 4097;
+//constexpr unsigned int M = 4097;
+const unsigned int M =
+    (MAX_DTC_ID - MIN_DTC_ID + 1) * SLINKS_PER_DTC * CICs_PER_SLINK;
 //alpaka::memset( myqueue, detIdMapDevice_, 0x00 );
 alpaka::memcpy(
 	myqueue, 
@@ -267,154 +270,212 @@ alpaka::wait(myqueue);
 	} // Begin run 
 
 	// Produce 
-	void Phase2RawToClusterProducer::produce(
-			device::Event& iEvent, device::EventSetup const&) {
+	// Produce 
+void Phase2RawToClusterProducer::produce(
+    device::Event& iEvent, device::EventSetup const&) {
 
-		auto queue = iEvent.queue();
-		// maximum total clusters 
-		static constexpr size_t MaxTotalClusters = (N_CLUSTER_MASK + 1) * CICs_PER_SLINK * (MAX_DTC_ID - MIN_DTC_ID + 1) * SLINKS_PER_DTC;
-		// -------The commented section might be used to change from buffer approach to SoAs ------------- For now kept -------	  
-		
-		/*   Example 
-		// Create and fill host digi collection 
-		// Construct new containers to hold data in host 
-		// auto hostDigis = HGCalDigiHostCollection(newSize, queue);
-		//	int size = some token.view().metadata().size(); ///will decide later 
-		//auto hostStripPixel = StripPixelHostCollection(size, queue);
-		for(int i=0; i<size;i++){
-		//    hostStripPixel.view()[i].stripClusterWords() = some token.view()[i].stripClusterWords();
-		//    hostStripPixel.view()[i].pixelClusterWords() = some token.view()[i].pixelClusterWords();
+  auto queue = iEvent.queue();
+  // maximum total clusters 
+  static constexpr size_t MaxTotalClusters = (N_CLUSTER_MASK + 1) * CICs_PER_SLINK * (MAX_DTC_ID - MIN_DTC_ID + 1) * SLINKS_PER_DTC;
+  // -------The commented section might be used to change from buffer approach to SoAs ------------- For now kept -------	  
+  
+  /*   Example 
+  // Create and fill host digi collection 
+  // Construct new containers to hold data in host 
+  // auto hostDigis = HGCalDigiHostCollection(newSize, queue);
+  //	int size = some token.view().metadata().size(); ///will decide later 
+  //auto hostStripPixel = StripPixelHostCollection(size, queue);
+  for(int i=0; i<size;i++){
+  //    hostStripPixel.view()[i].stripClusterWords() = some token.view()[i].stripClusterWords();
+  //    hostStripPixel.view()[i].pixelClusterWords() = some token.view()[i].pixelClusterWords();
 
-		}
-		*/
+  }
+  */
 
-		// 1) Build the flat rawword array:
-		//FED Raw Collection as rowColl holds data fragments from each SLINK for every DTC
-		auto const& rawColl = iEvent.get(fedRawDataToken_);
-		// as defined in the DAQProducer code
-		//unsigned totID = iSlink + SLINKS_PER_DTC * (dtcID - 1) + CMSSW_TRACKER_ID ;   // not used in the port  
-		// assert that the size is equal to number of slinks * dtcId 
-		// TODO: Check if this assert is correct or there also has to be the * CICs_PER_SLINK also 
-		//	assert(rawColl.size() == SLINKS_PER_DTC * (MAX_DTC_ID - MIN_DTC_ID));
-		//store all rawColl in three vecotrs where these will store its data size and an offset
-		//Data: raw byte
-		std::vector<unsigned char> linearData;
-		//size:size of each fragment, and offset: the starting index for each fragment in linearData  
-		// TODO change from size_t to uint_32 : OPTIMIZATION  
-		std::vector<size_t> size(rawColl.size());          // potential zero hsunting feild this is intialized with all zeros 
-		std::vector<size_t> offset(rawColl.size());
-		// Fill size with the length of each FEDData fragment
-		for (auto j = 0u; j < rawColl.size(); ++j) {
-			auto& data = rawColl.FEDData(j);
-			//	size.push_back(data.size());
-			// only process the non zero value
-			//if (data.size() == 0) continue; // Skip empty fragments // makes no difference in the zero peak
-			size[j] = data.size();
-			#ifdef Debug_CPU
-		// print the all the elements of the fed raw data to check if zeros are there 
-			std::cout << "FEDRawDataCollection[" << j << "] size: " << size[j] << "\n";
-	#endif
-			//std::cout << "FEDRawDataCollection[" << j << "] size: " << size[j] << "\n";
-			//if (size[j] == 0) continue; // Skip empty fragments // makes no difference in the zero peak
-			//std::cout << "FEDRawDataCollection[" << j << "] size: " << size[j] << "\n";
-		}
-		//TODO:: Check this section if needed to move back to reserve from resize :: Perhaps not 
-		// Compute offsets via exclusive scan:
-		// offset[i] = sum of size[0] through size[i-1]
-		std::exclusive_scan(size.begin(), size.end(), offset.begin(), 0);
-		// Reserve total capacity for linearData: last offset + last fragment size
-		//linearData.reserve(offset[offset.size()-1] + size[size.size() - 1]);
-		//linearData.reserve(offset.back() + size.back());
-		//changing reserve to resize in attempt to solve the illegal memory access runtime erro 
-		size_t totalBytes = offset.back() + size.back();
-		linearData.resize(totalBytes);
-        // commenting/adding to solve the init problem
-		// ====== NEW: EXPLICITLY INITIALIZE HOST MEMORY ======
-std::fill(linearData.begin(), linearData.end(), 0);  // ZERO-INITIALIZE ENTIRE BUFFER 
-		// Now linearData.data() points to a buffer of length = totalBytes
-		// Make a raw pointer to the beggining of the LinearData
-		unsigned char* start = linearData.data();
-		// Copy each fragment into linearData at its computed offset
-		for (auto j = 0u; j < rawColl.size(); ++j) {
-			auto& data = rawColl.FEDData(j);
-			//std::memcpy(start + offset[j], data.data(), data.size() );
-			// ====== NEW: ADDED BOUNDS CHECK FOR SAFETY ======
-			if (offset[j] + size[j] > totalBytes) {
-				throw std::runtime_error("BUFFER OVERFLOW DETECTED IN RAW DATA COPYING");
-			}
-			//if (data.size() == 0) continue; // Skip empty fragments make no diffrrence in the zero peak 
-			std::memcpy(start + offset[j], data.data(), size[j]);
-		}
-		// Make memory allocations to veiw these data from the CPU and copy them inot a buffer in GPU 
-		auto linearData_HostView = cms::alpakatools::make_host_view<unsigned char>(linearData.data(), static_cast<long unsigned int>(linearData.size()));
-		auto linearData_DevBuffer = cms::alpakatools::make_device_buffer<unsigned char[]>(queue, static_cast<long unsigned int>(linearData.size()));
-		// ====== NEW: INITIALIZE DEVICE BUFFER BEFORE COPY ======
-//alpaka::memset(queue, linearData_DevBuffer, 0x00);  // ZERO DEVICE MEMORY FIRST
-		alpaka::memcpy(
-				queue,
-				linearData_DevBuffer,        // device destination pointer
-				linearData_HostView, // host source pointer
-				static_cast< unsigned int>( linearData.size() )  // total bytes to copy
-			      ); 
-		auto size_HostView = cms::alpakatools::make_host_view<size_t>(size.data(), static_cast<long unsigned int>(size.size()));
-		auto size_DevBuffer = cms::alpakatools::make_device_buffer<size_t[]>(queue, static_cast<long unsigned int>(size.size()));
-		// ====== NEW: PROPER BYTE COUNT FOR SIZE_T BUFFER ======
-//alpaka::memset(queue, size_DevBuffer, 0x00);
-		alpaka::memcpy(
-				queue,
-				size_DevBuffer,        // device destination pointer
-				size_HostView , // host source pointer
-				static_cast< unsigned int>( size.size() )  // total bytes to copy
-			      );
-		auto offset_HostView = cms::alpakatools::make_host_view<size_t>(offset.data(), static_cast<long unsigned int>(offset.size()));
-		auto offset_DevBuffer = cms::alpakatools::make_device_buffer<size_t[]>(queue, static_cast<long unsigned int>(offset.size()));
-		// ====== NEW: SAME FIXES FOR OFFSET BUFFER ======
-//alpaka::memset(queue, offset_DevBuffer, 0x00);
-		alpaka::memcpy(
-				queue,
-				offset_DevBuffer,        // device destination pointer
-				offset_HostView , // host source pointer
-				static_cast< unsigned int>( offset.size() )  // total bytes to copy
-			      );
-		// Check this part 
-		// Allocate output SoA and global counter
-		auto devClusterProp = Phase2RawToCluster::ClusterPropDeviceCollection(MaxTotalClusters, queue);
-		auto&& devClusterPropBuffer = devClusterProp.buffer();  // Use forwarding reference
-//alpaka::memset(queue, devClusterPropBuffer, 0x00);  // Zero-initialize the device buffer
-		auto globalCounter = cms::alpakatools::make_device_buffer<uint32_t[]>(queue, 1u);
-		//alpaka::memset(queue, globalCounter, 0u);
-
-		// wait for the copy to finish before launching kernels
-		alpaka::wait(queue);
-
-		// Launch the kernals 
-		//launchUnpacker(queue, linearData_DevBuffer, size_DevBuffer, offset_DevBuffer, detIdxModuleTypeDevice_,
-		//		devClusterProp.view(), globalCounter.data()); 
-//New: launch the unpacker with the stackmapinfor for retainig the detId
-// Modify the launchUnpacker call
-//launchUnpacker(queue, linearData_DevBuffer, size_DevBuffer, offset_DevBuffer, detIdxModuleTypeDevice_, detIdMapDevice_, stackMapDevice_, devClusterProp.view(), globalCounter.data());		//auto hostClusterProp = ClusterPropHostCollection(MaxTotalClusters, queue);
-uint32_t stackMapSize = stackMap_.size();
-launchUnpacker(
+  // 1) Build the flat rawword array:
+  //FED Raw Collection as rowColl holds data fragments from each SLINK for every DTC
+  auto const& rawColl = iEvent.get(fedRawDataToken_);
+  // CHANGED: Compute the number of possible slinks to match kernel loop range and CPU logic
+  const size_t numSlinks = (MAX_DTC_ID - MIN_DTC_ID + 1) * SLINKS_PER_DTC;
+  // as defined in the DAQProducer code
+  //unsigned totID = iSlink + SLINKS_PER_DTC * (dtcID - 1) + CMSSW_TRACKER_ID ;   // not used in the port  
+  // assert that the size is equal to number of slinks * dtcId 
+  // TODO: Check if this assert is correct or there also has to be the * CICs_PER_SLINK also 
+  //	assert(rawColl.size() == SLINKS_PER_DTC * (MAX_DTC_ID - MIN_DTC_ID));
+  //store all rawColl in three vecotrs where these will store its data size and an offset
+  //Data: raw byte
+  std::vector<unsigned char> linearData;
+  //size:size of each fragment, and offset: the starting index for each fragment in linearData  
+  // TODO change from size_t to uint_32 : OPTIMIZATION  
+  // CHANGED: Resize size and offset to numSlinks (instead of rawColl.size()) to only handle relevant tracker slinks
+  std::vector<size_t> size(numSlinks);          // potential zero hsunting feild this is intialized with all zeros 
+  std::vector<size_t> offset(numSlinks);
+  // CHANGED: Add totIDs vector to store computed FED IDs for each slinkIdx
+  std::vector<unsigned int> totIDs(numSlinks);
+  // CHANGED: Loop over dtcID and iSlink like original CPU code to compute totID and fetch only relevant FED data
+  size_t slinkIdx = 0;
+  for (int dtcID = MIN_DTC_ID; dtcID < MAX_DTC_ID + 1; dtcID++) {
+    for (unsigned int iSlink = 0; iSlink < SLINKS_PER_DTC; iSlink++) {
+      unsigned totID = iSlink + SLINKS_PER_DTC * (dtcID - 1) + CMSSW_TRACKER_ID;
+      totIDs[slinkIdx] = totID;
+      const FEDRawData& fedData = rawColl.FEDData(totID);
+      size[slinkIdx] = fedData.size();
+      #ifdef Debug_CPU
+      // print the all the elements of the fed raw data to check if zeros are there 
+      // CHANGED: Print with totID instead of j for consistency with CPU debug
+      std::cout << "FEDRawDataCollection[" << totID << "] size: " << size[slinkIdx] << "\n";
+      #endif
+      slinkIdx++;
+    }
+  }
+  //TODO:: Check this section if needed to move back to reserve from resize :: Perhaps not 
+  // Compute offsets via exclusive scan:
+  // offset[i] = sum of size[0] through size[i-1]
+  std::exclusive_scan(size.begin(), size.end(), offset.begin(), 0);
+  // Reserve total capacity for linearData: last offset + last fragment size
+  //linearData.reserve(offset[offset.size()-1] + size[size.size() - 1]);
+  //linearData.reserve(offset.back() + size.back());
+  //changing reserve to resize in attempt to solve the illegal memory access runtime erro 
+  size_t totalBytes = offset.back() + size.back();
+  linearData.resize(totalBytes);
+  // commenting/adding to solve the init problem
+  // ====== NEW: EXPLICITLY INITIALIZE HOST MEMORY ======
+  std::fill(linearData.begin(), linearData.end(), 0);  // ZERO-INITIALIZE ENTIRE BUFFER 
+  // Now linearData.data() points to a buffer of length = totalBytes
+  // Make a raw pointer to the beggining of the LinearData
+  unsigned char* start = linearData.data();
+  // Copy each fragment into linearData at its computed offset
+  // CHANGED: Loop over numSlinks (0 to numSlinks-1), use totIDs[idx] to fetch data, skip if size[idx]==0
+  for (size_t idx = 0; idx < numSlinks; ++idx) {
+    if (size[idx] == 0) continue; // Skip empty fragments
+    const FEDRawData& data = rawColl.FEDData(totIDs[idx]);
+    // ====== NEW: ADDED BOUNDS CHECK FOR SAFETY ======
+    if (offset[idx] + size[idx] > totalBytes) {
+      throw std::runtime_error("BUFFER OVERFLOW DETECTED IN RAW DATA COPYING");
+    }
+    //if (data.size() == 0) continue; // Skip empty fragments make no diffrrence in the zero peak 
+    std::memcpy(start + offset[idx], data.data(), size[idx]);
+  }
+  // Make memory allocations to veiw these data from the CPU and copy them inot a buffer in GPU 
+  auto linearData_HostView = cms::alpakatools::make_host_view<unsigned char>(linearData.data(), static_cast<long unsigned int>(linearData.size()));
+  auto linearData_DevBuffer = cms::alpakatools::make_device_buffer<unsigned char[]>(queue, static_cast<long unsigned int>(linearData.size()));
+  // ====== NEW: INITIALIZE DEVICE BUFFER BEFORE COPY ======
+  // CHANGED: Uncommented alpaka::memset for linearData_DevBuffer to ensure no garbage data
+  alpaka::memset(queue, linearData_DevBuffer, 0x00);  // ZERO DEVICE MEMORY FIRST
+  alpaka::memcpy(
+      queue,
+      linearData_DevBuffer,        // device destination pointer
+      linearData_HostView, // host source pointer
+      static_cast< unsigned int>( linearData.size() )  // total bytes to copy
+        ); 
+      alpaka::wait(queue);
+  auto size_HostView = cms::alpakatools::make_host_view<size_t>(size.data(), static_cast<long unsigned int>(size.size()));
+  auto size_DevBuffer = cms::alpakatools::make_device_buffer<size_t[]>(queue, static_cast<long unsigned int>(size.size()));
+  // ====== NEW: PROPER BYTE COUNT FOR SIZE_T BUFFER ======
+  // CHANGED: Uncommented alpaka::memset for size_DevBuffer to ensure no garbage data
+  alpaka::memset(queue, size_DevBuffer, 0x00);
+  alpaka::memcpy(
+      queue,
+      size_DevBuffer,        // device destination pointer
+      size_HostView , // host source pointer
+      static_cast< unsigned int>( size.size() )  // total bytes to copy
+        );
+      alpaka::wait(queue);
+  auto offset_HostView = cms::alpakatools::make_host_view<size_t>(offset.data(), static_cast<long unsigned int>(offset.size()));
+  auto offset_DevBuffer = cms::alpakatools::make_device_buffer<size_t[]>(queue, static_cast<long unsigned int>(offset.size()));
+  // ====== NEW: SAME FIXES FOR OFFSET BUFFER ======
+  // CHANGED: Uncommented alpaka::memset for offset_DevBuffer to ensure no garbage data
+  alpaka::memset(queue, offset_DevBuffer, 0x00);
+  alpaka::memcpy(
     queue,
-    linearData_DevBuffer,
-    size_DevBuffer,
-    offset_DevBuffer,
-    detIdxModuleTypeDevice_,
-    detIdMapDevice_,
-    stackMapDevice_,
-    stackMapSize,  // Pass the size
-    devClusterProp.view(),
-    globalCounter.data()
-);
-//alpaka::memcpy(queue, hostClusterProp.buffer(), devClusterProp.const_buffer());
-		//alpaka::wait(queue);
-		// Copy output back to host as ClusterPropSoACollection
-Phase2RawToCluster::ClusterPropSoACollection hostClusterPropSoA(MaxTotalClusters, queue);
-auto hostBuf = hostClusterPropSoA.buffer();
-//alpaka::memset(queue, hostBuf, 0x00);
-alpaka::memcpy(queue, hostBuf, devClusterProp.const_buffer());
-alpaka::wait(queue);
+    offset_DevBuffer,        // device destination pointer
+    offset_HostView ,        // host source pointer
+    static_cast<unsigned int>(offset.size())  // total bytes to copy
+  );
+  alpaka::wait(queue);
 
+  // Check this part 
+  // Allocate output SoA and global counter
+  auto devClusterProp = Phase2RawToCluster::ClusterPropDeviceCollection(MaxTotalClusters, queue);
+  auto&& devClusterPropBuffer = devClusterProp.buffer();  // Use forwarding reference
+  // CHANGED: Uncommented alpaka::memset for devClusterPropBuffer to ensure no garbage data
+  alpaka::memset(queue, devClusterPropBuffer, 0x00);  // Zero-initialize the device buffer
+  auto globalCounter = cms::alpakatools::make_device_buffer<uint32_t[]>(queue, 1u);
+  // ✅ initialize the counter so we don’t read garbage later
+  alpaka::memset(queue, globalCounter, 0u);
+  alpaka::wait(queue);
+
+  // wait for the copy to finish before launching kernels
+  //alpaka::wait(queue);
+
+  // Launch the kernals 
+  //launchUnpacker(queue, linearData_DevBuffer, size_DevBuffer, offset_DevBuffer, detIdxModuleTypeDevice_,
+  //              devClusterProp.view(), globalCounter.data()); 
+  //New: launch the unpacker with the stackmapinfor for retainig the detId
+  // Modify the launchUnpacker call
+  //launchUnpacker(queue, linearData_DevBuffer, size_DevBuffer, offset_DevBuffer, detIdxModuleTypeDevice_, detIdMapDevice_, stackMapDevice_, devClusterProp.view(), globalCounter.data());        
+  //auto hostClusterProp = ClusterPropHostCollection(MaxTotalClusters, queue);
+  uint32_t stackMapSize = stackMap_.size();
+  launchUnpacker(
+  queue,
+  linearData_DevBuffer,
+  size_DevBuffer,
+  offset_DevBuffer,
+  detIdxModuleTypeDevice_,
+  detIdMapDevice_,
+  stackMapDevice_,
+  stackMapSize,  // Pass the size
+  devClusterProp.view(),
+  globalCounter.data()
+  );
+  //alpaka::memcpy(queue, hostClusterProp.buffer(), devClusterProp.const_buffer());
+  //alpaka::wait(queue);
+
+  // Copy output back to host as ClusterPropSoACollection
+  Phase2RawToCluster::ClusterPropSoACollection hostClusterPropSoA(MaxTotalClusters, queue);
+  auto hostBuf = hostClusterPropSoA.buffer();
+  // CHANGED: Uncommented alpaka::memset for hostBuf to ensure no garbage data (though host-side, it's safer)
+  alpaka::memset(queue, hostBuf, 0x00);
+  alpaka::memcpy(queue, hostBuf, devClusterProp.const_buffer());
+  alpaka::wait(queue);
+
+
+// Print the size column of the SoA
+// needs check returs a segmentation violation in runtime  
+//#ifdef Debug_CPU
+/*
+// 1. Allocate host buffer to read back the counter
+cms::alpakatools::host_buffer<uint32_t[]> hostCounter =
+    cms::alpakatools::make_host_buffer<uint32_t[], Platform>(1u);
+
+// 2. Copy from device to host
+alpaka::memcpy(queue, hostCounter, globalCounter, 1u);
+alpaka::wait(queue);  // make sure copy completes
+
+// 3. Read number of clusters
+size_t numElements = hostCounter[0];
+auto viewSoA = hostClusterPropSoA.view();
+
+std::cout << "Number of clusters: " << numElements << std::endl;
+
+// 4. Clamp to allocated capacity
+const size_t cap = static_cast<size_t>(viewSoA.metadata().size());
+if (numElements > cap) {
+    std::cerr << "[WARN] globalCounter (" << numElements
+              << ") exceeds SoA capacity (" << cap << "). Clamping.\n";
+}
+const size_t safeN = std::min(numElements, cap);
+
+// 5. Print first few entries (size only)
+const size_t toPrint = std::min<size_t>(safeN, 64);
+for (size_t i = 0; i < toPrint; ++i) {
+    std::cout << "Element " << i << ": size = " << viewSoA[i].size() << std::endl;
+}
+if (safeN > toPrint) {
+    std::cout << "... (" << (safeN - toPrint) << " more not shown)\n";
+}
+*/
+//#endif
 
 // converter SoA->DetSetVector  
 
