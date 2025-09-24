@@ -14,16 +14,15 @@ using namespace Phase2DAQFormatSpecification;
 namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
     void launchUnpacker(
-            Queue& queue,
-            cms::alpakatools::device_buffer<Device, unsigned char[]> rawdatabuff,
-            cms::alpakatools::device_buffer<Device, size_t[]> sizedatabuff,
-            cms::alpakatools::device_buffer<Device, size_t[]> offsetdatabuff,
-            cms::alpakatools::device_buffer<Device, int[]> inmap,
-            cms::alpakatools::device_buffer<Device, int[]> detIdMap, // Add detIdMap
-            cms::alpakatools::device_buffer<Device, std::pair<int, int>[]> stackMap, // add stackMap
-            uint32_t stackMapSize,  // Add size parameter
-            Phase2RawToCluster::ClusterPropDeviceCollection::View out,
-            uint32_t* globalCounter
+        Queue& queue,
+        cms::alpakatools::device_buffer<Device, unsigned char[]> rawdatabuff,
+        cms::alpakatools::device_buffer<Device, size_t[]>        sizedatabuff,
+        cms::alpakatools::device_buffer<Device, size_t[]>        offsetdatabuff,
+        cms::alpakatools::device_buffer<Device, int[]>           detIdxModuleTypeDevice,
+        cms::alpakatools::device_buffer<Device, uint32_t[]>      innerDetIdDevice,  // uint32_t
+        cms::alpakatools::device_buffer<Device, uint32_t[]>      outerDetIdDevice,  // uint32_t
+        Phase2RawToCluster::ClusterPropDeviceCollection::View out,
+        uint32_t* globalCounter
     );
 
 } // namespace ALPAKA_ACCELERATOR_NAMESPACE

@@ -23,9 +23,9 @@ options.parseArguments()
 process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(1) )
 
 ## Define the EDAnalyzer with the correct product label
-process.Phase2TrackerDumpClustersSoA = cms.EDAnalyzer(
+process.Phase2TrackerDumpClusters = cms.EDAnalyzer(
     'Phase2TrackerDumpClusters',
-    ProductLabel = cms.InputTag("phase2RawToCluster", "ClusterPropSoA")
+    ProductLabel = cms.InputTag("siPhase2Clusters")
 )
 
 process.TFileService = cms.Service('TFileService', 
@@ -38,8 +38,10 @@ process.source = cms.Source("PoolSource",
 )
 
 ## Update the ProductLabel to match the output from the digi-raw-digi process
+# added: point to the legacy AoS clusters produced by the converter
 if options.onUnpacked:
-  process.Phase2TrackerDumpClusters.ProductLabel = cms.InputTag("Unpacker", "", "PACKANDUNPACK")
+  # read the legacy AoS clusters created by the converter
+  process.Phase2TrackerDumpClusters.ProductLabel = cms.InputTag("ClusterConverter")
 
 
 ## Load Geometry for the D98 configuration

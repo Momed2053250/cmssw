@@ -1,11 +1,34 @@
-<library file="ClusterToRawProducer.cc,DTHDAQToFEDRawDataConverter.cc,RawAnalyzer.cc,Phase2TrackerDumpClusters.cc " name="Phase2RawToDigiProducers">
-  <use name="L1Trigger/TrackerDTC"/>
-  <use name="root"/>
+<library file="ClusterToRawProducer.cc,DTHDAQToFEDRawDataConverter.cc,RawAnalyzer.cc,Phase2TrackerDumpClusters.cc,ClusterPropSoAToLegacyED.cc"
+         name="Phase2RawToDigiProducers">
+  <use name="FWCore/Framework"/>
+  <use name="FWCore/ParameterSet"/>
+  <use name="FWCore/Utilities"/>
+  <use name="DataFormats/Common"/>
+  <use name="DataFormats/DetId"/>
+  <use name="DataFormats/Phase2TrackerDigi"/>
+  <use name="DataFormats/Phase2TrackerCluster"/>
+
+  <!-- added: needed for FEDRawData{,Collection} and FEDRawData symbols -->
+  <use name="DataFormats/FEDRawData"/>
+  <!-- added: TrackerGeometry + records used by your producers -->
+  <use name="Geometry/TrackerGeometryBuilder"/>
+  <use name="Geometry/Records"/>
+  <!-- added: TrackerTopology + record -->
+  <use name="DataFormats/TrackerCommon"/>
+  <!-- added: cabling map + its record (TrackerDetToDTCELinkCablingMap{,Rcd}, DTCELinkId) -->
+  <use name="CondFormats/SiPhase2TrackerObjects"/>
+  <use name="CondFormats/DataRecord"/>
+  <!-- added: TFileService and related ROOT helpers used by RawAnalyzer/Phase2TrackerDumpClusters -->
+  <use name="CommonTools/UtilAlgos"/>
+  <!-- added: MessageLogger calls in your code -->
+  <use name="FWCore/MessageLogger"/>
+  <!-- added: ServiceRegistry is used (TFileService) -->
   <use name="FWCore/ServiceRegistry"/>
-  <use name="PhysicsTools/UtilAlgos"/>
+  <!-- added: pulls in ROOT libs needed by the analyzer/hist code -->
+  <use name="root"/>
+
   <flags EDM_PLUGIN="1"/>
 </library>
-
 
 <library file="alpakaEDanalyser.cc" name="Phase2RawToDigiAnalyzer">
   <use name="L1Trigger/TrackerDTC"/>
@@ -19,15 +42,14 @@
   <flags EDM_PLUGIN="1"/>
 </library>
 
-
 <!-- alpaka-based portable plugins -->
 <library file="alpaka/*.cc" name="Phase2RawToClusterProducer">
-	<use name="alpaka"/>
-	<use name="L1Trigger/TrackerDTC"/>
+  <use name="alpaka"/>
+  <use name="L1Trigger/TrackerDTC"/>
   <use name="root"/>
   <use name="FWCore/ServiceRegistry"/>
   <use name="PhysicsTools/UtilAlgos"/>
-	<use name="CondFormats/DataRecord"/>
+  <use name="CondFormats/DataRecord"/>
   <use name="CondFormats/HGCalObjects"/>
   <use name="DataFormats/HGCalDigi"/>
   <use name="DataFormats/HGCalRecHit"/>
@@ -43,6 +65,11 @@
   <use name="HeterogeneousCore/AlpakaCore"/>
   <use name="HeterogeneousCore/AlpakaInterface"/>
   <use name="RecoLocalCalo/HGCalRecAlgos"/>
+
+  <!-- added: kernels & producer include/use these -->
+  <use name="DataFormats/FEDRawData"/>
+  <use name="DataFormats/Phase2TrackerCluster"/>
+
   <flags ALPAKA_BACKENDS="1"/>
   <flags EDM_PLUGIN="1"/>
 </library>

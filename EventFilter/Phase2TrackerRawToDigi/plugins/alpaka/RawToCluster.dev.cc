@@ -1,11 +1,14 @@
-// GPU kernals File 
+// ================================ GPU kernels File ================================
 // alpaka-related imports
+
 #include <alpaka/alpaka.hpp>
+
 #include "HeterogeneousCore/AlpakaInterface/interface/traits.h"
 #include "HeterogeneousCore/AlpakaInterface/interface/workdivision.h"
 
 #include "DataFormats/FEDRawData/interface/alpaka/StripPixelDeviceCollection.h"
 #include "DataFormats/Phase2TrackerCluster/interface/ClusterPropDeviceCollection.h"
+
 #include "EventFilter/Phase2TrackerRawToDigi/interface/SensorHybrid.h"
 #include "EventFilter/Phase2TrackerRawToDigi/interface/Phase2TrackerSpecifications.h"
 #include "EventFilter/Phase2TrackerRawToDigi/interface/Phase2DAQFormatSpecification.h"
@@ -18,527 +21,389 @@ using namespace Phase2TrackerSpecifications;
 using namespace Phase2DAQFormatSpecification;
 using namespace ALPAKA_ACCELERATOR_NAMESPACE;
 
-// Debug flag 
+// Debug flag
 //#define Debug_GPU
 
-// ------------1) Define max sharedmem sizes ------------------
-static constexpr int MaxHeaderWords    = HEADER_N_LINES;
+// ------------1) Define max local scratch sizes ------------------
+// Per-thread scratch arrays (safe on GPU backends)
 static constexpr int MaxOffsetWords    = (OFFSET_BITS * CICs_PER_SLINK) / N_BITS_PER_WORD;
 static constexpr int MaxStripClusters  = N_CLUSTER_MASK + 1;   // 128
 static constexpr int MaxPixelClusters  = N_CLUSTER_MASK + 1;   // 128
 static constexpr int MaxPayloadLines =
-((MaxStripClusters * SS_CLUSTER_BITS +
-  MaxPixelClusters * PX_CLUSTER_BITS)
- / N_BITS_PER_WORD) + 1;
-// total 32-bit words we need in shared mem:
-static constexpr int MaxTotalSharedWords =
-MaxHeaderWords
-+ MaxOffsetWords
-+ MaxPayloadLines
-+ MaxStripClusters
-+ MaxPixelClusters;
-
-
+  ((MaxStripClusters * SS_CLUSTER_BITS + MaxPixelClusters * PX_CLUSTER_BITS) / N_BITS_PER_WORD) + 1;
 
 namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
-	// create masking 
-	ALPAKA_FN_ACC int createMask(int nBits) {
-		return (1 << nBits) - 1;
-	}	
-	// Read a 32bit word from a byte buffer
-	ALPAKA_FN_ACC uint32_t readLine(const unsigned char* dataPtr, int lineIdx){						
-		uint32_t line = (static_cast<uint32_t>(dataPtr[lineIdx]) << 24) | 
-			(static_cast<uint32_t>(dataPtr[lineIdx + 1]) << 16) | 
-			(static_cast<uint32_t>(dataPtr[lineIdx + 2]) << 8) | 
-			(static_cast<uint32_t>(dataPtr[lineIdx + 3]));
+  // create masking
+  ALPAKA_FN_ACC inline int createMask(int nBits) { return (1 << nBits) - 1; }
 
-		return line;                                
-	}
-	// Compute byte offset within payload: skip header and channel offset table
-	ALPAKA_FN_ACC int getLineIndex(int channelIdx, unsigned int iline){
-		return channelIdx + N_BYTES_PER_WORD + iline * N_BYTES_PER_WORD; 
-	}
+  // Read a 32bit word from a byte buffer
+  ALPAKA_FN_ACC inline uint32_t readLine(const unsigned char* dataPtr, int byteIdx) {
+    return (static_cast<uint32_t>(dataPtr[byteIdx])     << 24) |
+           (static_cast<uint32_t>(dataPtr[byteIdx + 1]) << 16) |
+           (static_cast<uint32_t>(dataPtr[byteIdx + 2]) << 8)  |
+            static_cast<uint32_t>(dataPtr[byteIdx + 3]);
+  }
 
-	// Extract cluster words across multiple lines with bit-packing
-	ALPAKA_FN_ACC void readPayload(uint32_t* clusterWords,   // output array for extracted words
-			uint32_t* lines,                         // input buffer of 32-bit words
-			int numClusters,
-			int& nAvailableBits,                    // bits left in current "line"
-			int& iLine,                             // current line index
-			int& bitsToRead,                         // leftover bits to read if cluster spans words
-			int& nFullClusters,                     // full clusters read in current line
-			int clusterBits,
-			int clusterWordMask,                    // mask to isolate cluster bits
-			bool isPixelCluster,
-			int nFullClustersStrips = 0             // count of strip clusters in PS module !!Perhaps 
-			)
-	{
-		for (int icluster = 0; icluster < numClusters; icluster++) {
-			if (nAvailableBits >= clusterBits) {
-				// calculate the shift to align bits for extraction as in the code (CPU based) 
-				int shift = N_BITS_PER_WORD - bitsToRead - (nFullClusters + 1) * clusterBits;
-				// take into account bits already used for the last strip cluster
-				if (icluster == 0 && isPixelCluster) 
-					// adjust for prior strip clusters in PS modules
-					shift -= (nFullClustersStrips)* SS_CLUSTER_BITS;
-				nFullClustersStrips = 0; // reset
+  // Compute byte offset within payload: skip header and channel offset table
+  ALPAKA_FN_ACC inline int getLineIndex(int channelIdx, unsigned int iline) {
+    return channelIdx + N_BYTES_PER_WORD + iline * N_BYTES_PER_WORD;
+  }
 
-				// mask, and save cluster word
-				clusterWords[icluster] = (lines[iLine] >> shift) & clusterWordMask;
-				// update available bits and number of full clusters from this line
-				nAvailableBits -= clusterBits;
-				nFullClusters++;
+  // Extract cluster words across multiple lines with bit-packing
+  ALPAKA_FN_ACC inline void readPayload(
+      uint32_t* clusterWords,         // output array for extracted words
+      const uint32_t* lines,          // input buffer of 32-bit words
+      int numClusters,
+      int& nAvailableBits,            // bits left in current "line"
+      int& iLine,                     // current line index
+      int& bitsToRead,                // leftover bits to read if cluster spans words
+      int& nFullClusters,             // full clusters read in current line
+      const int clusterBits,
+      const int clusterWordMask,      // mask to isolate cluster bits
+      const bool isPixelCluster,
+      int nFullClustersStrips = 0     // count of strip clusters in PS module
+  ) {
+    for (int icluster = 0; icluster < numClusters; ++icluster) {
+      if (nAvailableBits >= clusterBits) {
+        // calculate the shift to align bits for extraction as in the CPU code
+        int shift = N_BITS_PER_WORD - bitsToRead - (nFullClusters + 1) * clusterBits;
+        // account for bits used by last strip cluster (PS only)
+        if (icluster == 0 && isPixelCluster) shift -= (nFullClustersStrips) * SS_CLUSTER_BITS;
+        nFullClustersStrips = 0; // reset
 
-				// Advance to next "line" if we've consumed all bits
-				if (nAvailableBits == 0) {
-					iLine++;
-					nAvailableBits = N_BITS_PER_WORD;
-					nFullClusters = 0;
-					bitsToRead = 0;
-				}
-			} else {
+        // mask, and save cluster word
+        clusterWords[icluster] = (lines[iLine] >> shift) & clusterWordMask;
 
-				//Handle clusters spanning across two 32bit words 
-				// get the remaining bits from the current line. first create the mask, then mask
-				int nMask = createMask(nAvailableBits);
-				uint16_t wordLeft = lines[iLine] & nMask;
+        // update available bits and number of full clusters from this line
+        nAvailableBits -= clusterBits;
+        nFullClusters++;
 
-				// create mask for next line
-				bitsToRead = clusterBits - nAvailableBits;
-				int nextMask = createMask(bitsToRead);
-				// shift and mask
-				uint16_t wordRight = (lines[iLine + 1] >> (N_BITS_PER_WORD - bitsToRead)) & nextMask;
+        // Advance to next word if we consumed all bits
+        if (nAvailableBits == 0) {
+          ++iLine;
+          nAvailableBits = N_BITS_PER_WORD;
+          nFullClusters = 0;
+          bitsToRead = 0;
+        }
+      } else {
+        // cluster spans word boundary
+        const int nMask = createMask(nAvailableBits);
+        const uint16_t wordLeft = static_cast<uint16_t>(lines[iLine] & nMask);
 
-				// compose the full cluster word
-				clusterWords[icluster] = (wordLeft << bitsToRead) | wordRight;
+        bitsToRead = clusterBits - nAvailableBits;
+        const int nextMask = createMask(bitsToRead);
+        const uint16_t wordRight = static_cast<uint16_t>((lines[iLine + 1] >> (N_BITS_PER_WORD - bitsToRead)) & nextMask);
 
-				// re-set n available bits
-				nAvailableBits = N_BITS_PER_WORD - bitsToRead;
-				// advance by one line and re-init the number of complete clusters read from the current line
-				iLine++;
-				nFullClusters = 0;
+        clusterWords[icluster] = (static_cast<uint32_t>(wordLeft) << bitsToRead) | wordRight;
 
-			}
-		}
-	}
+        // prepare for next read
+        nAvailableBits = N_BITS_PER_WORD - bitsToRead;
+        ++iLine;
+        nFullClusters = 0;
+      }
+    }
+  }
 
-	// Read 16-bit offset for a given channel from packed offsetWords array
-	ALPAKA_FN_ACC uint16_t getOffsetForChannel(unsigned int iChannel, uint32_t* offsetWords) {
-		if (iChannel >= CICs_PER_SLINK) {
-			printf("Error: iChannel %u too high\n", iChannel);
-			return 0;
-		}
-		//TODO:: Optimize
-		// Even channel: lower 16 bits of word iChannel/2
-		int wordIdx = iChannel / 2;
-		if (iChannel % 2 == 0) {
-			return static_cast<uint16_t>(offsetWords[wordIdx] & 0xFFFF);
-		} else {
-			// extract the upper 16 bits by shifting right by 16
-			return static_cast<uint16_t>(offsetWords[wordIdx] >> 16); 
-		}
-	}
+  // maximum total clusters
+  static constexpr size_t MaxTotalClusters =
+      (N_CLUSTER_MASK + 1) * CICs_PER_SLINK * (MAX_DTC_ID - MIN_DTC_ID + 1) * SLINKS_PER_DTC;
 
-	// maximum total clusters 
-	static constexpr size_t MaxTotalClusters = (N_CLUSTER_MASK + 1) * CICs_PER_SLINK * (MAX_DTC_ID - MIN_DTC_ID + 1) * SLINKS_PER_DTC;
-	// Unpacker kernel: top-level device loop over FED fragments
-	struct Unpacker {
-		template <
-			typename Acc,
-				 typename RawBufView,
-				 typename SizeBufView,
-				 typename OffBufView,
-				 typename InMapView,
-				 typename DetIdMapView, // Add DetIdMapView
-				 typename StackMapView, // add stack map 
-				 typename OutView
-					 >
-					 ALPAKA_FN_ACC void operator()(
-							 Acc const& acc,
-							 RawBufView in,
-							 SizeBufView sizes,
-							 OffBufView offsets,
-							 InMapView const& detIdxModuleTypeMap,
-							 DetIdMapView const& detIdMap, // Add detIdMap
-							 StackMapView const& stackMap, // add stack map 
-							 uint32_t stackMapSize,  // Add stackMapSize parameter
-							 OutView out,
-							 uint32_t* globalCounter
-							 ) const {
+  // --------------------------- Unpacker kernel ---------------------------
+  struct Unpacker {
+    template <
+      typename Acc,
+      typename RawBufView,
+      typename SizeBufView,
+      typename OffBufView,
+      typename ModuleTypeView,
+      typename InnerDetIdView,   // uint32_t view
+      typename OuterDetIdView,   // uint32_t view
+      typename OutView
+    >
+    ALPAKA_FN_ACC void operator()(Acc const& acc,
+                                  RawBufView in,
+                                  SizeBufView sizes,
+                                  OffBufView offsets,
+                                  ModuleTypeView const& detIdxModuleTypeMap,
+                                  InnerDetIdView const& innerDetIdForFlatIdx,
+                                  OuterDetIdView const& outerDetIdForFlatIdx,
+                                  OutView out,
+                                  uint32_t* globalCounter) const {
+      // Per-thread scratch (safe on GPU)
+      uint32_t offsetWords[MaxOffsetWords];
+      uint32_t lines[MaxPayloadLines];
+      uint32_t stripClusterWords[MaxStripClusters];
+      uint32_t pixelClusterWords[MaxPixelClusters];
 
-						 // (A) Allocate ONE contiguous chunk of dynamic shared memory:
-						 uint8_t* smemBytes = alpaka::getDynSharedMem<uint8_t>(acc);
-						 uint32_t* smemWords = reinterpret_cast<uint32_t*>(smemBytes);
-#ifdef Debug_GPU
-						 if (!smemBytes) {
-							 printf("Error: smemBytes is null\n");
-							 return;
-						 }
-#endif
-						 // (B) Slice that chunk into disjoint regions:
-						 uint32_t* headerWords = smemWords;
-						 uint32_t* offsetWords = headerWords + MaxHeaderWords;
-						 uint32_t* lines = offsetWords + MaxOffsetWords;
-						 uint32_t* stripClusterWords = lines + MaxPayloadLines;
-						 uint32_t* pixelClusterWords = stripClusterWords + MaxStripClusters;
+      // Global linear thread id and stride
+      const uint32_t gtid = alpaka::getIdx<alpaka::Grid, alpaka::Threads>(acc)[0u];
+      const uint32_t gdim = alpaka::getWorkDiv<alpaka::Grid, alpaka::Threads>(acc)[0u];
 
-						 // Track starting index for each channel pair
-						 uint32_t channelPairStartIdx = 0;
-						 if (cms::alpakatools::once_per_block(acc)) {
-							// channelPairStartIdx = alpaka::atomicAdd(acc, globalCounter, static_cast<uint32_t>(MaxStripClusters + MaxPixelClusters));
-						 }
-						
-						 alpaka::syncBlockThreads(acc);
+      // Number of SLINK fragments we actually process
+      const uint32_t NSlinks = (MAX_DTC_ID - MIN_DTC_ID + 1) * SLINKS_PER_DTC;
 
-						 // Local counter for clusters within this channel pair
-						 uint32_t localClusterIdx = 0;
+      // Each thread processes multiple SLINKs in a grid-stride loop
+      for (uint32_t frdId = gtid; frdId < NSlinks; frdId += gdim) {
+        // Skip empty fragments
+        const uint32_t fragSizeBytes = static_cast<uint32_t>(sizes[frdId]);
+        if (fragSizeBytes == 0) continue;
 
-						 // Iterate over each FED fragment ID in parallel
-						 for (auto frdId : cms::alpakatools::independent_groups(acc, (MAX_DTC_ID - MIN_DTC_ID +1) * SLINKS_PER_DTC)) {
-							 if (sizes[frdId]  == 0 ) continue;  // Skip empty fragments
-							 //print the fedrawdata to see if it actually skipes the zeros
-#ifdef Debug_GPU	
-			printf("Processing FEDRawDataCollection[%u] with size: %lu\n", frdId, (unsigned long)sizes[frdId]);
-#endif
-							 // {
-								 const unsigned char* dataPtr = in + offsets[frdId];
+        const unsigned char* dataPtr = in + offsets[frdId];
 
-								 // 1) Read the header
-								 size_t nHeaderLines = HEADER_N_LINES;
-								 for (auto k : cms::alpakatools::independent_group_elements(acc, nHeaderLines)) {
-									 auto byteIdx = k * N_BYTES_PER_WORD;
-									 headerWords[k] = readLine(dataPtr, byteIdx);
-								 }
-								 alpaka::syncBlockThreads(acc);
-#ifdef Debug_GPU
-if (cms::alpakatools::once_per_block(acc)) {
-    printf("headerWords[0] = %u\n", headerWords[0]);
-}
-#endif
+        // 0) fragment minimal size check for header+offsets
+        const uint32_t minHdrOff = static_cast<uint32_t>((HEADER_N_LINES + MODULES_PER_SLINK) * N_BYTES_PER_WORD);
+        if (fragSizeBytes < minHdrOff) continue;
 
-								 // 2) Read offset words
-								 size_t nOffsetsLines = (OFFSET_BITS * CICs_PER_SLINK) / N_BITS_PER_WORD;
-								 size_t initByte = HEADER_N_LINES * N_BYTES_PER_WORD;
-								 for (auto k : cms::alpakatools::independent_group_elements(acc, nOffsetsLines)) {
-									 int byteIdx = static_cast<int>(initByte + k * N_BYTES_PER_WORD);
-									 offsetWords[k] = readLine(dataPtr, byteIdx);
-								 }
-								 alpaka::syncBlockThreads(acc);
-#ifdef Debug_GPU
-if (cms::alpakatools::once_per_block(acc)) {
+        // 1) Offsets start after the fixed-size header (we don't need header contents for unpacking)
+        const size_t nOffsetsLines = MaxOffsetWords; // (OFFSET_BITS * CICs_PER_SLINK) / 32
+        const size_t initByte      = HEADER_N_LINES * N_BYTES_PER_WORD;
 
-	printf("offsetWords[0] = %u\n", offsetWords[0]);
-}
-#endif
+        // Ensure last offset word is within fragment
+        const size_t lastOffByte = initByte + (nOffsetsLines - 1) * N_BYTES_PER_WORD + (N_BYTES_PER_WORD - 1);
+        if (lastOffByte >= fragSizeBytes) continue;
 
-								 // Unpack each channel
-								 for (unsigned int iChannel = 0; iChannel < CICs_PER_SLINK; iChannel++) {
-									 // Reset local cluster index for even channels
-									 if (iChannel % 2 == 0) {
-										 localClusterIdx = 0;
-									 }
-									 // Retrieve module type
-									 const unsigned CICs = CICs_PER_SLINK;
-									 unsigned flatIdx = frdId * CICs + iChannel;
-									 int thisDetId = detIdMap[flatIdx]; // Get the detId from the map
-									 // FIXED: Use full enum check (undef=0, TwoS=1, PS=2)
-        int moduleType = detIdxModuleTypeMap[flatIdx];
-        bool is2SModule = (moduleType == 1); // TwoS
-        // FIXED: Skip undef (unconnected) modules to match CPU
-        if (moduleType == 0) continue; // undef -> skip
-#ifdef Debug_GPU
-if (cms::alpakatools::once_per_block(acc)) {
-									 
-										 printf("is2SModule is: %d\n", is2SModule);
-}
-#endif
+        for (size_t k = 0; k < nOffsetsLines; ++k) {
+          const int byteIdx = static_cast<int>(initByte + k * N_BYTES_PER_WORD);
+          offsetWords[k] = readLine(dataPtr, byteIdx);
+        }
 
-									 // Compute byte index of channel header
-									 size_t offsetTableStart = (HEADER_N_LINES + MODULES_PER_SLINK) * N_BYTES_PER_WORD;
-									 int channelOffset16 = static_cast<int>(getOffsetForChannel(iChannel, offsetWords));
-#ifdef Debug_GPU
-if (cms::alpakatools::once_per_block(acc)) {
-									 printf("ChannelOffset16 is: %u\n", channelOffset16);
-									}
-#endif
-									 int idx = static_cast<int>(offsetTableStart + channelOffset16 * N_BYTES_PER_WORD);
-#ifdef Debug_GPU
-if (cms::alpakatools::once_per_block(acc)) {
-									 printf("idx is: %u\n", idx);
-}
-#endif
+        // 2) Unpack each channel (same order and logic as CPU)
+        for (unsigned int iChannel = 0; iChannel < CICs_PER_SLINK; ++iChannel) {
+          // Build flatIdx = frdId * CICs + iChannel
+          const unsigned flatIdx = frdId * CICs_PER_SLINK + iChannel;
 
-									 // Read channel header and extract cluster counts
-									 uint32_t chHeaderWord = readLine(dataPtr, idx);
-									 unsigned int numStripClusters =
-										 (chHeaderWord >> (N_BITS_PER_WORD - L1ID_BITS - CIC_ERROR_BITS - N_STRIP_CLUSTER_BITS)) & N_CLUSTER_MASK;
-									 unsigned int numPixelClusters = chHeaderWord & N_CLUSTER_MASK;
+          // Retrieve module type (0=undef, 1=TwoS, 2=PS)
+          const int moduleType = detIdxModuleTypeMap[flatIdx];
+          if (moduleType == 0) continue; // skip unconnected
 
-									 // Define number of payload lines
-									 unsigned int nLines = (numStripClusters + numPixelClusters > 0) ?
-										 int((numStripClusters * SS_CLUSTER_BITS + numPixelClusters * PX_CLUSTER_BITS) / N_BITS_PER_WORD) + 1 : 0;
-#ifdef Debug_GPU
-if (cms::alpakatools::once_per_block(acc)) {
-									 printf("n strip clusters are: %u\n", numStripClusters);
-									 printf("n pixel clusters are: %u\n", numPixelClusters);
-}
-#endif
+          const bool is2SModule = (moduleType == 1);
 
-									 // Retrieve payload lines
-									 for (auto k : cms::alpakatools::independent_group_elements(acc, nLines)) {
-										 int byteIdx = getLineIndex(idx, k);
-										 lines[k] = readLine(dataPtr, byteIdx);    
-										 // print the lines
-#ifdef Debug_GPU
-if (cms::alpakatools::once_per_block(acc)) {
+          // Compute byte index of channel header
+          const size_t offsetTableStart = (HEADER_N_LINES + MODULES_PER_SLINK) * N_BYTES_PER_WORD;
 
-	//if (k == 0)  // Match CPU: only print the first line
-		printf("Lines[0] = %u\n", lines[0]);
-}
-#endif
-									 }
-									 alpaka::syncBlockThreads(acc);
-									 // Read payloads
-									 int nAvailableBits = N_BITS_PER_WORD;
-									 int iLine = 0;
-									 int bitsToRead = 0;
-									 int nFullClustersStrip = 0;
-									 int nFullClustersPix = 0;
+          // Read 16-bit offset for this channel (same as CPU)
+          const int wordIdx = static_cast<int>(iChannel / 2);
+          const uint16_t channelOffset16 = (iChannel % 2 == 0)
+            ? static_cast<uint16_t>(offsetWords[wordIdx] & 0xFFFFu)
+            : static_cast<uint16_t>(offsetWords[wordIdx] >> 16);
 
-									 if (is2SModule) {
-										 if (cms::alpakatools::once_per_block(acc)) {
-											 readPayload(stripClusterWords, lines, numStripClusters, nAvailableBits, iLine, bitsToRead,
-													 nFullClustersStrip, SS_CLUSTER_BITS, SS_CLUSTER_WORD_MASK, false);
-										 }
-									 alpaka::syncBlockThreads(acc);
-									 } else {
-										 if (cms::alpakatools::once_per_block(acc)) {
-											 readPayload(stripClusterWords, lines, numStripClusters, nAvailableBits, iLine, bitsToRead,
-													 nFullClustersStrip, SS_CLUSTER_BITS, SS_CLUSTER_WORD_MASK, false);
-											 // print out the strip cluster words
-#ifdef Debug_GPU
-	printf("Strip Cluster words: \n");
-	for (unsigned int i = 0; i < numStripClusters; ++i) {
-		printf("%u ", stripClusterWords[i]);
-	}
-	printf("\n");
+          const uint32_t idx = static_cast<uint32_t>(offsetTableStart + channelOffset16 * N_BYTES_PER_WORD);
 
-#endif
-											 readPayload(pixelClusterWords, lines, numPixelClusters, nAvailableBits, iLine, bitsToRead,
-													 nFullClustersPix, PX_CLUSTER_BITS, PX_CLUSTER_WORD_MASK, true, nFullClustersStrip);
-											 // print out the pixel cluster words
-#ifdef Debug_GPU
+          // header is 4 bytes at idx..idx+3
+          if (idx + (N_BYTES_PER_WORD - 1) >= fragSizeBytes) {
+            // bogus channel offset -> skip channel
+            continue;
+          }
+          const uint32_t chHeaderWord = readLine(dataPtr, static_cast<int>(idx));
 
-	printf("Pixel Cluster words: \n");
-	for (unsigned int i = 0; i < numPixelClusters; ++i) {
-		printf("%u ", pixelClusterWords[i]);		
-	}
-	printf("\n");
-#endif
-										 }
-									 alpaka::syncBlockThreads(acc);
+          const unsigned int numStripClusters =
+            (chHeaderWord >> (N_BITS_PER_WORD - L1ID_BITS - CIC_ERROR_BITS - N_STRIP_CLUSTER_BITS)) & N_CLUSTER_MASK;
+          const unsigned int numPixelClusters = chHeaderWord & N_CLUSTER_MASK;
 
-									 }
+          // Define number of payload lines
+          unsigned int nLines = 0;
+          if (numStripClusters + numPixelClusters > 0) {
+            const unsigned int neededBits =
+              numStripClusters * SS_CLUSTER_BITS + numPixelClusters * PX_CLUSTER_BITS;
+            nLines = static_cast<unsigned int>(neededBits / N_BITS_PER_WORD) + 1u;
+          }
+          if (nLines > MaxPayloadLines) nLines = MaxPayloadLines;
 
-									 // Unpack clusters and store in output SoA
-									 if (is2SModule) {
-										#ifdef Debug_GPU
-											printf("Unpacking for /*2S module\n");
-										#endif
-											for (auto icluster : cms::alpakatools::independent_group_elements(acc, numStripClusters)) {
-												uint32_t word = stripClusterWords[icluster];
-												uint32_t chip = (word >> (SS_CLUSTER_BITS - CHIP_ID_BITS)) & CHIP_ID_MAX_VALUE;
-												uint32_t addr = (word >> (SS_CLUSTER_BITS - CHIP_ID_BITS - SCLUSTER_ADDRESS_ONLY_BITS_2S)) & SCLUSTER_ADDRESS_MASK;
-												bool seed = (word >> (SS_CLUSTER_BITS - CHIP_ID_BITS - SCLUSTER_ADDRESS_BITS_2S)) & IS_SEED_SENSOR_MASK;
-												uint32_t w = word & WIDTH_MAX_VALUE;
-												if (w == 0) w = 8;
-												// print only w values 
-#ifdef Debug_GPU
-												printf("Unpacking values 2S: w = %u\n", w);
-#endif
-										
-												uint32_t outIdx = channelPairStartIdx + localClusterIdx;
-												if (outIdx < MaxTotalClusters) {
-													out[outIdx].strip() = STRIPS_PER_CBC * chip + addr;  // Maps to x
-													out[outIdx].row() = iChannel % 2 == 0 ? 0u : 1u;     // Maps to y
-													out[outIdx].size() = w;                              // Maps to width
-													out[outIdx].threshold() = seed;                      // Maps to seedFlag
-													out[outIdx].mipBit() = 0;                            // Unchanged
-													out[outIdx].column() = 0;                            // Initialize to 0 (unused)
-													out[outIdx].edge() = 0;                              // Initialize to 0 (unused)
-													if (thisDetId >= 0 && thisDetId < static_cast<int>(stackMapSize)){
-														out[outIdx].detId() = seed ? stackMap[thisDetId].first : stackMap[thisDetId].second;
-													}
-														#ifdef Debug_GPU
-													printf("Unpacked values 2S: chipID = %u, addr = %u, size = %u, threshold = %d, strip = %u, row = %u, column = %u, edge = %u\n",
-														   chip, addr, w, seed, out[outIdx].strip(), out[outIdx].row(), out[outIdx].column(), out[outIdx].edge());
-										#endif
-												}
-												localClusterIdx++;
-											}
-									 alpaka::syncBlockThreads(acc);
-										} else {
-											// PS strip clusters
-											for (auto icluster : cms::alpakatools::independent_group_elements(acc, numStripClusters)) {
-												uint32_t word = stripClusterWords[icluster];
-												uint32_t chip = (word >> (SS_CLUSTER_BITS - CHIP_ID_BITS)) & CHIP_ID_MAX_VALUE;
-												uint32_t addr = (word >> (SS_CLUSTER_BITS - CHIP_ID_BITS - SCLUSTER_ADDRESS_BITS_PS)) & SCLUSTER_ADDRESS_PS_MAX_VALUE;
-												uint32_t w = (word >> (SS_CLUSTER_BITS - CHIP_ID_BITS - SCLUSTER_ADDRESS_BITS_PS - WIDTH_BITS)) & WIDTH_MAX_VALUE;
-												uint32_t mipBit = word & MIP_BITS_MASK;
-												if (w == 0) w = 8;
-										// print only w values
-#ifdef Debug_GPU
-												printf("Unpacking values S on PS: w = %u\n", w);
-#endif
-												uint32_t outIdx = channelPairStartIdx + localClusterIdx;
-												if (outIdx < MaxTotalClusters) {
-													out[outIdx].strip() = STRIPS_PER_SSA * chip + addr;  // Maps to x
-													out[outIdx].row() = iChannel % 2 == 0 ? 0u : 1u;     // Maps to y
-													out[outIdx].size() = w;                              // Maps to width
-													out[outIdx].threshold() = false;                     // Maps to seedFlag
-													out[outIdx].mipBit() = mipBit;                       // Unchanged
-													out[outIdx].column() = 0;                            // Initialize to 0 (unused)
-													out[outIdx].edge() = 0;                              // Initialize to 0 (unused)
-													//out[outIdx].detId() = stackMap[thisDetId].second; // outer (correlated sensor)
-													if (thisDetId >= 0 && thisDetId < static_cast<int>(stackMapSize)) {
-														out[outIdx].detId() = stackMap[thisDetId].second;
-													}
-													//else {
-													//	out[outIdx].detId() = -1; // Invalid detId
-													//}
-										#ifdef Debug_GPU
-													printf("Unpacked values S on PS: chipID = %u, addr = %u, size = %u, mipBit = %u, strip = %u, row = %u, column = %u, edge = %u\n",
-														   chip, addr, w, mipBit, out[outIdx].strip(), out[outIdx].row(), out[outIdx].column(), out[outIdx].edge());
-										#endif
-												}
-												localClusterIdx++;
-											}
-									 alpaka::syncBlockThreads(acc);
-											// PS pixel clusters
-											for (auto icluster : cms::alpakatools::independent_group_elements(acc, numPixelClusters)) {
-												uint32_t word = pixelClusterWords[icluster];
-												uint32_t chip = (word >> (PX_CLUSTER_BITS - CHIP_ID_BITS)) & CHIP_ID_MAX_VALUE;
-												uint32_t addr = (word >> (PX_CLUSTER_BITS - CHIP_ID_BITS - SCLUSTER_ADDRESS_BITS_PS)) & SCLUSTER_ADDRESS_PS_MAX_VALUE;
-												uint32_t w = (word >> (PX_CLUSTER_BITS - CHIP_ID_BITS - SCLUSTER_ADDRESS_BITS_PS - WIDTH_BITS)) & WIDTH_MAX_VALUE;
-												uint32_t z = word & PS_Z_BITS_MASK;
-												if (w == 0) w = 8;
-										// print only w values
-#ifdef Debug_GPU
-												printf("Unpacking values S on PS: w = %u\n", w);
-#endif
-												uint32_t outIdx = channelPairStartIdx + localClusterIdx;
-												if (outIdx < MaxTotalClusters) {
-													out[outIdx].strip() = STRIPS_PER_SSA * chip + addr;  // Maps to x
-													out[outIdx].row() = iChannel % 2 == 0 ? z : (z + 16); // Maps to y
-													out[outIdx].size() = w;                              // Maps to width
-													out[outIdx].threshold() = true;                      // Maps to seedFlag
-													out[outIdx].mipBit() = 0;                            // Unchanged
-													out[outIdx].column() = z;                            // Check if set to z is correct for the PS Modules 
-													out[outIdx].edge() = 0;                              // Initialize to 0 (unused)
-													//out[outIdx].detId() = stackMap[thisDetId].first; // inner (seed sensor)										
-													if (thisDetId >= 0 && thisDetId < static_cast<int>(stackMapSize)) {
-														out[outIdx].detId() = stackMap[thisDetId].first;
-													}
-													#ifdef Debug_GPU
-													printf("Unpacked values P on PS: chipID = %u, addr = %u, size = %u, z = %u, strip = %u, row = %u, column = %u, edge = %u\n",
-														   chip, addr, w, z, out[outIdx].strip(), out[outIdx].row(), out[outIdx].column(), out[outIdx].edge());
-										#endif
-												}
-												localClusterIdx++;
-											}
-										alpaka::syncBlockThreads(acc);
-										} 
-								 } // end loop on channels for this dtc
-								 alpaka::syncBlockThreads(acc);
-							 //} // end fed data size > 0
-						 } // independatn group elements 
-						 alpaka::syncBlockThreads(acc);
-					 } // call operator  
-	};
+          // ensure the last payload word fits
+          if (nLines > 0) {
+            const uint32_t lastPayloadByte = static_cast<uint32_t>(
+              getLineIndex(static_cast<int>(idx), nLines - 1) + (N_BYTES_PER_WORD - 1));
+            if (lastPayloadByte >= fragSizeBytes) {
+              // malformed payload -> skip channel
+              continue;
+            }
+          }
 
+          // Retrieve payload lines
+          for (unsigned int k = 0; k < nLines; ++k) {
+            const int byteIdx = getLineIndex(static_cast<int>(idx), k);
+            lines[k] = readLine(dataPtr, byteIdx);
+          }
 
-	// Kernel for 2S modules: unpack only stripClustersWords into (x,y,width) TODO :: chabnge the unpackers from kernal to functions (remove the operator and like the functions on top )
-	// 2. move uniform elements outside the function now 
-	// 3. in the previous todo we added the reserved places before the unpacking and this needs to write the output to the reserved the places : 
-	// Launch the generic Unpacker kernel (header + payload) on device
-	void launchUnpacker(
-			Queue& queue,
-			cms::alpakatools::device_buffer<Device, unsigned char[]> rawdatabuff,
-			cms::alpakatools::device_buffer<Device, size_t[]> sizedatabuff,
-			cms::alpakatools::device_buffer<Device, size_t[]> offsetdatabuff,
-			cms::alpakatools::device_buffer<Device, int[]> inmap,
-			cms::alpakatools::device_buffer<Device, int[]> detIdMap, // Add detIdMap
-			cms::alpakatools::device_buffer<Device, std::pair<int, int>[]> stackMap, // add stackMap
-			uint32_t stackMapSize,  // Add size parameter
-			Phase2RawToCluster::ClusterPropDeviceCollection::View out,
-			uint32_t* globalCounter) {
-		//const uint32_t threadsPerBlock = 128;
-		// +1 added for normalization of the 3D indexing
-		//const uint32_t blocks = (MAX_DTC_ID - MIN_DTC_ID + 1) * SLINKS_PER_DTC ;
-			// new
-	const uint32_t threadsPerBlock = 128;
-	const uint32_t totalChannels = (MAX_DTC_ID - MIN_DTC_ID) * SLINKS_PER_DTC * CICs_PER_SLINK;
-	const uint32_t blocks = (totalChannels + threadsPerBlock - 1) / threadsPerBlock;
-	//end new 
-		// removing +1
-		//const uint32_t blocks = (MAX_DTC_ID - MIN_DTC_ID) * SLINKS_PER_DTC ;
-		//Adjust the work division to account for channel-level parallelism:
-/*		const uint32_t threadsPerBlock = 128;
-		const uint32_t blocks = ((MAX_DTC_ID - MIN_DTC_ID) * SLINKS_PER_DTC * CICs_PER_SLINK + threadsPerBlock - 1) / threadsPerBlock;
- */
-		auto workDiv = cms::alpakatools::make_workdiv<Acc1D>(blocks, threadsPerBlock);
+          // Read payloads (bit-unpack into per-thread scratch)
+          int nAvailableBits = N_BITS_PER_WORD;
+          int iLine = 0;
+          int bitsToRead = 0;
+          int nFullClustersStrip = 0;
+          int nFullClustersPix = 0;
 
-		alpaka::exec<Acc1D>(
-				queue,
-				workDiv,
-				Unpacker{},
-				rawdatabuff.data(),
-				sizedatabuff.data(),
-				offsetdatabuff.data(),
-				inmap.data(),
-				detIdMap.data(),
-				stackMap.data(), // add stackMap
-				static_cast<uint32_t>(stackMapSize),  // Pass the size
-				out, 
-				globalCounter
-				);
-	}
-}  // namespace ALPAKA_ACCELERATOR_NAMESPACE
+          const unsigned int useStrip = (numStripClusters <= static_cast<unsigned int>(MaxStripClusters)) ? numStripClusters : static_cast<unsigned int>(MaxStripClusters);
+          const unsigned int usePixel = (numPixelClusters <= static_cast<unsigned int>(MaxPixelClusters)) ? numPixelClusters : static_cast<unsigned int>(MaxPixelClusters);
 
-// Specialize trait to tell Alpaka how much to allocate 
-// Specialization of BlockSharedMemDynSizeBytes for Unpacker kernel
-// This specialization tells Alpaka how much dynamic shared memory to allocate for the Unpacker kernel
-// This is needed to avoid illegal memory access errors
-// The size is the total number of 32-bit words needed, multiplied by sizeof(uint32_t) to get bytes
+          // 2S or PS: strips first
+          if (useStrip > 0) {
+            readPayload(stripClusterWords, lines, static_cast<int>(useStrip),
+                        nAvailableBits, iLine, bitsToRead, nFullClustersStrip,
+                        SS_CLUSTER_BITS, SS_CLUSTER_WORD_MASK, false);
+          }
+
+          // PS only: then pixels
+          if (!is2SModule && usePixel > 0) {
+            readPayload(pixelClusterWords, lines, static_cast<int>(usePixel),
+                        nAvailableBits, iLine, bitsToRead, nFullClustersPix,
+                        PX_CLUSTER_BITS, PX_CLUSTER_WORD_MASK, true, nFullClustersStrip);
+          }
+
+          // Reserve output slots; guard against capacity overflow
+          const uint32_t want = is2SModule ? useStrip : (useStrip + usePixel);
+          if (want == 0) continue;
+
+          const uint32_t base = alpaka::atomicAdd(acc, globalCounter, want);
+          const uint32_t cap  = static_cast<uint32_t>(MaxTotalClusters);
+          if (base >= cap) {
+            // counter exceeded capacity; host will clamp anyway
+            continue;
+          }
+          const uint32_t room = cap - base;
+
+          // how many can we actually write
+          const uint32_t takeStrip = is2SModule
+            ? (useStrip > room ? room : useStrip)
+            : (useStrip > room ? room : useStrip);
+          const uint32_t takePix   = (!is2SModule && takeStrip < room)
+            ? (usePixel > (room - takeStrip) ? (room - takeStrip) : usePixel)
+            : 0u;
+
+          // Unpack to output SoA using precomputed inner/outer detIds
+          const uint32_t innerDet = innerDetIdForFlatIdx[flatIdx];
+          const uint32_t outerDet = outerDetIdForFlatIdx[flatIdx];
+
+          // 2S: strips only
+          if (is2SModule) {
+            for (uint32_t ic = 0; ic < takeStrip; ++ic) {
+              const uint32_t word = stripClusterWords[ic];
+              const uint32_t chip = (word >> (SS_CLUSTER_BITS - CHIP_ID_BITS)) & CHIP_ID_MAX_VALUE;
+              const uint32_t addr = (word >> (SS_CLUSTER_BITS - CHIP_ID_BITS - SCLUSTER_ADDRESS_ONLY_BITS_2S)) & SCLUSTER_ADDRESS_MASK;
+              const bool     seed = (word >> (SS_CLUSTER_BITS - CHIP_ID_BITS - SCLUSTER_ADDRESS_BITS_2S)) & IS_SEED_SENSOR_MASK;
+              uint32_t       w    = word & WIDTH_MAX_VALUE;
+              if (w == 0) w = 8;
+
+              const uint32_t outIdx = base + ic;
+              if (outIdx >= cap) break;
+
+              out[outIdx].strip()     = STRIPS_PER_CBC * chip + addr;           // x
+              out[outIdx].row()       = (iChannel % 2 == 0) ? 0u : 1u;          // y
+              out[outIdx].size()      = w;                                      // width
+              out[outIdx].threshold() = seed;                                   // seedFlag
+              out[outIdx].mipBit()    = 0;
+              out[outIdx].column()    = 0;
+              out[outIdx].edge()      = 0;
+              out[outIdx].detId()     = seed ? innerDet : outerDet;             // inner=seed, outer=corr
+            }
+          } else {
+            // PS: strips (correlated sensor  outer)
+            for (uint32_t ic = 0; ic < takeStrip; ++ic) {
+              const uint32_t word = stripClusterWords[ic];
+              const uint32_t chip = (word >> (SS_CLUSTER_BITS - CHIP_ID_BITS)) & CHIP_ID_MAX_VALUE;
+              const uint32_t addr = (word >> (SS_CLUSTER_BITS - CHIP_ID_BITS - SCLUSTER_ADDRESS_BITS_PS)) & SCLUSTER_ADDRESS_PS_MAX_VALUE;
+              uint32_t       w    = (word >> (SS_CLUSTER_BITS - CHIP_ID_BITS - SCLUSTER_ADDRESS_BITS_PS - WIDTH_BITS)) & WIDTH_MAX_VALUE;
+              const uint32_t mip  = word & MIP_BITS_MASK;
+              if (w == 0) w = 8;
+
+              const uint32_t outIdx = base + ic;
+              if (outIdx >= cap) break;
+
+              out[outIdx].strip()     = STRIPS_PER_SSA * chip + addr;           // x
+              out[outIdx].row()       = (iChannel % 2 == 0) ? 0u : 1u;          // y
+              out[outIdx].size()      = w;
+              out[outIdx].threshold() = false;                                  // strip on PS is correlated sensor
+              out[outIdx].mipBit()    = mip;
+              out[outIdx].column()    = 0;
+              out[outIdx].edge()      = 0;
+              out[outIdx].detId()     = outerDet;                               // outer (correlated)
+            }
+
+            // PS: pixels (seed  inner); placed immediately after strips
+            for (uint32_t ic = 0; ic < takePix; ++ic) {
+              const uint32_t word = pixelClusterWords[ic];
+              const uint32_t chip = (word >> (PX_CLUSTER_BITS - CHIP_ID_BITS)) & CHIP_ID_MAX_VALUE;
+              const uint32_t addr = (word >> (PX_CLUSTER_BITS - CHIP_ID_BITS - SCLUSTER_ADDRESS_BITS_PS)) & SCLUSTER_ADDRESS_PS_MAX_VALUE;
+              uint32_t       w    = (word >> (PX_CLUSTER_BITS - CHIP_ID_BITS - SCLUSTER_ADDRESS_BITS_PS - WIDTH_BITS)) & WIDTH_MAX_VALUE;
+              const uint32_t z    = word & PS_Z_BITS_MASK;
+              if (w == 0) w = 8;
+
+              const uint32_t outIdx = base + takeStrip + ic;
+              if (outIdx >= cap) break;
+
+              out[outIdx].strip()     = STRIPS_PER_SSA * chip + addr;           // x
+              out[outIdx].row()       = (iChannel % 2 == 0) ? z : (z + 16);     // y
+              out[outIdx].size()      = w;
+              out[outIdx].threshold() = true;                                   // pixel on PS is seed
+              out[outIdx].mipBit()    = 0;
+              out[outIdx].column()    = z;                                      // keep as in your mapping
+              out[outIdx].edge()      = 0;
+              out[outIdx].detId()     = innerDet;                               // inner (seed)
+            }
+          }
+        } // channels
+      }   // frdId stride loop
+    }     // operator()
+  };
+
+  // Launch the generic Unpacker kernel (header + payload) on device
+  void launchUnpacker(
+      Queue& queue,
+      cms::alpakatools::device_buffer<Device, unsigned char[]> rawdatabuff,
+      cms::alpakatools::device_buffer<Device, size_t[]>        sizedatabuff,
+      cms::alpakatools::device_buffer<Device, size_t[]>        offsetdatabuff,
+      cms::alpakatools::device_buffer<Device, int[]>           detIdxModuleTypeDevice,
+      cms::alpakatools::device_buffer<Device, uint32_t[]>      innerDetIdDevice,  // uint32_t
+      cms::alpakatools::device_buffer<Device, uint32_t[]>      outerDetIdDevice,  // uint32_t
+      Phase2RawToCluster::ClusterPropDeviceCollection::View out,
+      uint32_t* globalCounter) {
+
+    const uint32_t NSlinks = (MAX_DTC_ID - MIN_DTC_ID + 1) * SLINKS_PER_DTC;
+    const uint32_t threadsPerBlock = 128;
+    const uint32_t blocks = (NSlinks + threadsPerBlock - 1) / threadsPerBlock;
+
+    auto workDiv = cms::alpakatools::make_workdiv<Acc1D>(blocks, threadsPerBlock);
+
+    alpaka::exec<Acc1D>(
+      queue,
+      workDiv,
+      Unpacker{},
+      rawdatabuff.data(),
+      sizedatabuff.data(),
+      offsetdatabuff.data(),
+      detIdxModuleTypeDevice.data(),
+      innerDetIdDevice.data(),
+      outerDetIdDevice.data(),
+      out,
+      globalCounter
+    );
+  }
+
+} // namespace ALPAKA_ACCELERATOR_NAMESPACE
+
+// No dynamic shared memory is required
 namespace alpaka::trait {
-	template<>
-		struct BlockSharedMemDynSizeBytes<Unpacker, Acc1D> {
-			template<
-				typename RawBufView,
-					 typename SizeBufView,
-					 typename OffBufView,
-					 typename InMapView,
-					 typename DetIdMapView, // Add DetIdMapView
-    				 typename StackMapView, // Add StackMapView
-					 typename OutView
-						 >
-						 ALPAKA_FN_HOST_ACC static std::size_t
-						 getBlockSharedMemDynSizeBytes(
-								 Unpacker const & /*kernel*/,
-								 Vec1D threads, 
-								 Vec1D elements,
-								 RawBufView, //const* /*in*/,
-								 SizeBufView, //const* /*sizes*/,
-								 OffBufView, //const* /*offsets*/,
-								 DetIdMapView, // Add detIdMap
-    							 StackMapView, // Add stackMap
-								 InMapView, //const* /*detIdxMap*/
-								 uint32_t stackMapSize,  // Add stackMapSize parameter
-								 OutView,
-								 uint32_t* globalCounter
-								 ) {
-							 return static_cast<std::size_t>(MaxTotalSharedWords) * sizeof(uint32_t);
-						 }
-		};
-} // namespace alpaka::trait
+  template<>
+  struct BlockSharedMemDynSizeBytes<Unpacker, Acc1D> {
+    template<
+      typename RawBufView,
+      typename SizeBufView,
+      typename OffBufView,
+      typename ModuleTypeView,
+      typename InnerDetIdView,
+      typename OuterDetIdView,
+      typename OutView
+    >
+    ALPAKA_FN_HOST_ACC static std::size_t getBlockSharedMemDynSizeBytes(
+      Unpacker const&,
+      Vec1D /*threads*/,
+      Vec1D /*elements*/,
+      RawBufView, SizeBufView, OffBufView,
+      ModuleTypeView, InnerDetIdView, OuterDetIdView,
+      OutView,
+      uint32_t* /*globalCounter*/
+    ) {
+      return 0u;
+    }
+  };
+}

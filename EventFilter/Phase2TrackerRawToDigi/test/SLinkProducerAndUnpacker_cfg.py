@@ -8,8 +8,8 @@ import FWCore.Utilities.FileUtils as FileUtils
 import os
 
 process = cms.Process("PACKANDUNPACK")
-process.options.numberOfThreads = 1
-process.options.numberOfStreams = 1
+process.options.numberOfThreads = 8
+process.options.numberOfStreams = 8
 def get_input_mc_line(dataset_database, line_number):
     with open(dataset_database, 'r') as file:
         lines = file.readlines()
@@ -92,11 +92,16 @@ process.Analyzer = cms.EDAnalyzer("RawAnalyzer",
     fedRawDataCollection = cms.InputTag("Packer"),
 )
 
-#process.Unpacker = cms.EDProducer("Phase2RawToClusterProducer@alpaka",
-process.Unpacker = cms.EDProducer("alpaka_serial_sync::Phase2RawToClusterProducer",
+process.Unpacker = cms.EDProducer("Phase2RawToClusterProducer@alpaka",
+#process.Unpacker = cms.EDProducer("alpaka_serial_sync::Phase2RawToClusterProducer",
 #process.Unpacker = cms.EDProducer("alpaka_cuda_async::Phase2RawToClusterProducer",
-#process.Unpacker = cms.EDProducer("alpaka_rocm_async::Phase2RawToClusterProducer",        
+#process.Unpacker = cms.EDProducer("alpaka_rocm_async::Phase2RawToClusterProducer",
     fedRawDataCollection = cms.InputTag("Packer"),
+)
+
+## added: converter from SoA (produced by Unpacker) to legacy DetSetVector
+process.ClusterConverter = cms.EDProducer("ClusterPropSoAToLegacyED",
+    clusterSoASource = cms.InputTag("Unpacker")  # SoA from the alpaka producer
 )
 
 process.out = cms.OutputModule("PoolOutputModule",
@@ -109,6 +114,8 @@ process.out = cms.OutputModule("PoolOutputModule",
         'keep *_Packer_*_*',
         'keep *_Unpacker_*_*',
         'keep *_mix_Tracker_*',
+        ## added: keep the legacy clusters produced by the converter
+        'keep *_ClusterConverter_*_*'
     ),
     fileName = cms.untracked.string('raw2clusters.root')
 )
@@ -124,6 +131,17 @@ process.Timing = cms.Service("Timing",
 process.NVProfilerService = cms.Service("NVProfilerService",
     showModulePrefetching = cms.untracked.bool(False)
 )
-process.dtc = cms.Path(process.ClustersFromPhase2TrackerDigis * process.Packer * process.Unpacker)
+
+## original path:
+# process.dtc = cms.Path(process.ClustersFromPhase2TrackerDigis * process.Packer * process.Unpacker)
+
+## added: append converter after Unpacker
+process.dtc = cms.Path(
+    process.ClustersFromPhase2TrackerDigis *
+    process.Packer *
+    process.Unpacker *
+    process.ClusterConverter   ## added
+)
+
 process.output = cms.EndPath(process.out)
 # process.dtc = cms.Path(process.ClustersFromPhase2TrackerDigis * process.Packer * process.Analyzer * process.Unpacker)

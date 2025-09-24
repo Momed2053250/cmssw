@@ -1,55 +1,55 @@
 SCRAM fatal: Unable to locate the top of local release. Please run this command from a SCRAM-based area.
-%MSG-i ThreadStreamSetup:  (NoModuleName) 24-Jul-2025 18:36:47 CEST pre-events
-setting # threads 4
-setting # streams 2
+%MSG-i ThreadStreamSetup:  (NoModuleName) 24-Sep-2025 10:57:20 CEST pre-events
+setting # threads 8
+setting # streams 8
 %MSG
-%MSG-i Root_Information:  (NoModuleName) RTaskArenaWrapper()  24-Jul-2025 18:36:55 CEST pre-events
+%MSG-i Root_Information:  (NoModuleName) RTaskArenaWrapper()  24-Sep-2025 10:57:22 CEST pre-events
 CPU Bandwith Control Active. Proceeding with 2 threads accordingly
 %MSG
-%MSG-i CUDAService:  (NoModuleName) 24-Jul-2025 18:36:55 CEST pre-events
-CUDA runtime version 12.8, driver version 12.9, NVIDIA driver version 575.51.03
-CUDA device 0: Tesla V100S-PCIE-32GB (sm_70)
+%MSG-i CUDAService:  (NoModuleName) 24-Sep-2025 10:57:22 CEST pre-events
+CUDA runtime version 12.8, driver version 12.8, NVIDIA driver version 570.133.20
+CUDA device 0: NVIDIA H100L-1-12C MIG 1g.12gb (sm_90)
 %MSG
-%MSG-i AlpakaService:  (NoModuleName) 24-Jul-2025 18:36:55 CEST pre-events
+%MSG-i AlpakaService:  (NoModuleName) 24-Sep-2025 10:57:22 CEST pre-events
 AlpakaServiceSerialSync succesfully initialised.
 Found 1 device:
-  - Intel(R) Xeon(R) Silver 4216 CPU @ 2.10GHz
+  - Intel(R) Xeon(R) Platinum 8468
 %MSG
-%MSG-i AlpakaService:  (NoModuleName) 24-Jul-2025 18:36:55 CEST pre-events
+%MSG-i AlpakaService:  (NoModuleName) 24-Sep-2025 10:57:22 CEST pre-events
 AlpakaServiceCudaAsync succesfully initialised.
 Found 1 device:
-  - Tesla V100S-PCIE-32GB
+  - NVIDIA H100L-1-12C MIG 1g.12gb
 %MSG
-24-Jul-2025 18:36:58 CEST  Initiating request to open file root://eoscms.cern.ch//eos/cms/store/relval/CMSSW_14_0_0_pre2/RelValTTbar_14TeV/GEN-SIM-DIGI-RAW/PU_133X_mcRun4_realistic_v1_STD_2026D98_PU200_RV229-v1/2580000/0b2b0b0b-f312-48a8-9d46-ccbadc69bbfd.root
-24-Jul-2025 18:37:40 CEST  Successfully opened file root://eoscms.cern.ch//eos/cms/store/relval/CMSSW_14_0_0_pre2/RelValTTbar_14TeV/GEN-SIM-DIGI-RAW/PU_133X_mcRun4_realistic_v1_STD_2026D98_PU200_RV229-v1/2580000/0b2b0b0b-f312-48a8-9d46-ccbadc69bbfd.root
-Begin processing the 1st record. Run 1, Event 9502, LumiSection 96 on stream 1 at 24-Jul-2025 18:37:46.759 CEST
-24-Jul-2025 18:37:47 CEST  Closed file root://eoscms.cern.ch//eos/cms/store/relval/CMSSW_14_0_0_pre2/RelValTTbar_14TeV/GEN-SIM-DIGI-RAW/PU_133X_mcRun4_realistic_v1_STD_2026D98_PU200_RV229-v1/2580000/0b2b0b0b-f312-48a8-9d46-ccbadc69bbfd.root
-TimeReport> Time report complete in 69.3793 seconds
+24-Sep-2025 10:57:23 CEST  Initiating request to open file root://eoscms.cern.ch//eos/cms/store/relval/CMSSW_14_0_0_pre2/RelValTTbar_14TeV/GEN-SIM-DIGI-RAW/PU_133X_mcRun4_realistic_v1_STD_2026D98_PU200_RV229-v1/2580000/0b2b0b0b-f312-48a8-9d46-ccbadc69bbfd.root
+24-Sep-2025 10:57:46 CEST  Successfully opened file root://eoscms.cern.ch//eos/cms/store/relval/CMSSW_14_0_0_pre2/RelValTTbar_14TeV/GEN-SIM-DIGI-RAW/PU_133X_mcRun4_realistic_v1_STD_2026D98_PU200_RV229-v1/2580000/0b2b0b0b-f312-48a8-9d46-ccbadc69bbfd.root
+Begin processing the 1st record. Run 1, Event 9502, LumiSection 96 on stream 1 at 24-Sep-2025 10:57:53.575 CEST
+24-Sep-2025 10:57:54 CEST  Closed file root://eoscms.cern.ch//eos/cms/store/relval/CMSSW_14_0_0_pre2/RelValTTbar_14TeV/GEN-SIM-DIGI-RAW/PU_133X_mcRun4_realistic_v1_STD_2026D98_PU200_RV229-v1/2580000/0b2b0b0b-f312-48a8-9d46-ccbadc69bbfd.root
+TimeReport> Time report complete in 37.1089 seconds
  Time Summary: 
- - Min event:   0.659531
- - Max event:   0.659531
- - Avg event:   0.659531
- - Total loop:  6.90631
- - Total init:  62.473
- - Total job:   69.3793
- - Total EventSetup: 4.6745
- - Total non-module: 20.1979
- Event Throughput: 0.144795 ev/s
+ - Min event:   0.97906
+ - Max event:   0.97906
+ - Avg event:   0.97906
+ - Total loop:  8.02763
+ - Total init:  29.0812
+ - Total job:   37.1089
+ - Total EventSetup: 2.94996
+ - Total non-module: 53.7384
+ Event Throughput: 0.12457 ev/s
  CPU Summary: 
- - Total loop:     5.79828
- - Total init:     40.7491
+ - Total loop:     4.91359
+ - Total init:     23.7543
  - Total extra:    0
- - Total children: 0.263477
- - Total job:      46.5476
+ - Total children: 0.416796
+ - Total job:      28.6679
  Processing Summary: 
  - Number of Events:  1
  - Number of Global Begin Lumi Calls:  1
  - Number of Global Begin Run Calls: 1
 
-24-Jul-2025 18:37:51 CEST  Initiating request to open file root://eoscms.cern.ch//eos/cms/store/relval/CMSSW_14_0_0_pre2/RelValTTbar_14TeV/GEN-SIM-DIGI-RAW/PU_133X_mcRun4_realistic_v1_STD_2026D98_PU200_RV229-v1/2580000/0b2b0b0b-f312-48a8-9d46-ccbadc69bbfd.root
-24-Jul-2025 18:38:26 CEST  Successfully opened file root://eoscms.cern.ch//eos/cms/store/relval/CMSSW_14_0_0_pre2/RelValTTbar_14TeV/GEN-SIM-DIGI-RAW/PU_133X_mcRun4_realistic_v1_STD_2026D98_PU200_RV229-v1/2580000/0b2b0b0b-f312-48a8-9d46-ccbadc69bbfd.root
-Begin processing the 1st record. Run 1, Event 9502, LumiSection 96 on stream 0 at 24-Jul-2025 18:38:33.020 CEST
-24-Jul-2025 18:38:33 CEST  Closed file root://eoscms.cern.ch//eos/cms/store/relval/CMSSW_14_0_0_pre2/RelValTTbar_14TeV/GEN-SIM-DIGI-RAW/PU_133X_mcRun4_realistic_v1_STD_2026D98_PU200_RV229-v1/2580000/0b2b0b0b-f312-48a8-9d46-ccbadc69bbfd.root
+24-Sep-2025 10:57:57 CEST  Initiating request to open file root://eoscms.cern.ch//eos/cms/store/relval/CMSSW_14_0_0_pre2/RelValTTbar_14TeV/GEN-SIM-DIGI-RAW/PU_133X_mcRun4_realistic_v1_STD_2026D98_PU200_RV229-v1/2580000/0b2b0b0b-f312-48a8-9d46-ccbadc69bbfd.root
+24-Sep-2025 10:58:19 CEST  Successfully opened file root://eoscms.cern.ch//eos/cms/store/relval/CMSSW_14_0_0_pre2/RelValTTbar_14TeV/GEN-SIM-DIGI-RAW/PU_133X_mcRun4_realistic_v1_STD_2026D98_PU200_RV229-v1/2580000/0b2b0b0b-f312-48a8-9d46-ccbadc69bbfd.root
+Begin processing the 1st record. Run 1, Event 9502, LumiSection 96 on stream 0 at 24-Sep-2025 10:58:27.192 CEST
+24-Sep-2025 10:58:27 CEST  Closed file root://eoscms.cern.ch//eos/cms/store/relval/CMSSW_14_0_0_pre2/RelValTTbar_14TeV/GEN-SIM-DIGI-RAW/PU_133X_mcRun4_realistic_v1_STD_2026D98_PU200_RV229-v1/2580000/0b2b0b0b-f312-48a8-9d46-ccbadc69bbfd.root
 
 TrigReport ---------- Event  Summary ------------
 TrigReport Events total = 1 passed = 1 failed = 0
@@ -74,10 +74,10 @@ TrigReport          1          1          1          0          0 Phase2TrackerD
 
 
 TimeReport ---------- Event  Summary ---[sec]----
-TimeReport       event loop CPU/event = 5.112786
-TimeReport      event loop Real/event = 5.924512
-TimeReport     sum Streams Real/event = 0.772628
-TimeReport efficiency CPU/Real/thread = 0.862989
+TimeReport       event loop CPU/event = 3.406070
+TimeReport      event loop Real/event = 7.144990
+TimeReport     sum Streams Real/event = 0.466595
+TimeReport efficiency CPU/Real/thread = 0.476707
 
 TimeReport ---------- Path   Summary ---[Real sec]----
 TimeReport  per event     per exec  Name
@@ -86,32 +86,29 @@ TimeReport  per event     per exec  Name
 
 TimeReport -------End-Path   Summary ---[Real sec]----
 TimeReport  per event     per exec  Name
-TimeReport   0.520440     0.520440  p
+TimeReport   0.391952     0.391952  p
 
 TimeReport  per event     per exec  Name
 
 TimeReport ------ Modules in End-Path: p ---[Real sec]----
 TimeReport  per event    per visit  Name
-TimeReport   0.503675     0.503675  Phase2TrackerDumpClusters
+TimeReport   0.382349     0.382349  Phase2TrackerDumpClusters
 
 TimeReport  per event    per visit  Name
 
 TimeReport ---------- Module Summary ---[Real sec]----
 TimeReport  per event     per exec    per visit  Name
-TimeReport   0.503675     0.503675     0.503675  Phase2TrackerDumpClusters
+TimeReport   0.382349     0.382349     0.382349  Phase2TrackerDumpClusters
 
 TimeReport  per event     per exec    per visit  Name
 
 T---Report end!
 
 
-24-Jul-2025 18:38:37 CEST  Initiating request to open file file:raw2clusters.root
-24-Jul-2025 18:38:38 CEST  Successfully opened file file:raw2clusters.root
-Begin processing the 1st record. Run 1, Event 9502, LumiSection 96 on stream 0 at 24-Jul-2025 18:38:43.108 CEST
-size of clusters: 0
-Number of clusters with size <= 8 and dtcID == 30: 0
-
-24-Jul-2025 18:38:43 CEST  Closed file file:raw2clusters.root
+24-Sep-2025 10:58:31 CEST  Initiating request to open file file:raw2clusters.root
+24-Sep-2025 10:58:31 CEST  Successfully opened file file:raw2clusters.root
+Begin processing the 1st record. Run 1, Event 9502, LumiSection 96 on stream 0 at 24-Sep-2025 10:58:34.689 CEST
+24-Sep-2025 10:58:35 CEST  Closed file file:raw2clusters.root
 
 TrigReport ---------- Event  Summary ------------
 TrigReport Events total = 1 passed = 1 failed = 0
@@ -127,19 +124,19 @@ TrigReport     0    0          1          1          0          0 p
 
 TrigReport ------ Modules in End-Path: p ------------
 TrigReport  Trig Bit#    Visited     Passed     Failed      Error Name
-TrigReport     0    0          1          1          0          0 Phase2TrackerDumpClustersSoA
+TrigReport     0    0          1          1          0          0 Phase2TrackerDumpClusters
 
 
 TrigReport ---------- Module Summary ------------
 TrigReport    Visited   Executed     Passed     Failed      Error Name
-TrigReport          1          1          1          0          0 Phase2TrackerDumpClustersSoA
+TrigReport          1          1          1          0          0 Phase2TrackerDumpClusters
 
 
 TimeReport ---------- Event  Summary ---[sec]----
-TimeReport       event loop CPU/event = 4.471866
-TimeReport      event loop Real/event = 4.925012
-TimeReport     sum Streams Real/event = 0.089083
-TimeReport efficiency CPU/Real/thread = 0.907991
+TimeReport       event loop CPU/event = 3.345597
+TimeReport      event loop Real/event = 3.722662
+TimeReport     sum Streams Real/event = 0.415245
+TimeReport efficiency CPU/Real/thread = 0.898711
 
 TimeReport ---------- Path   Summary ---[Real sec]----
 TimeReport  per event     per exec  Name
@@ -148,19 +145,19 @@ TimeReport  per event     per exec  Name
 
 TimeReport -------End-Path   Summary ---[Real sec]----
 TimeReport  per event     per exec  Name
-TimeReport   0.088623     0.088623  p
+TimeReport   0.414879     0.414879  p
 
 TimeReport  per event     per exec  Name
 
 TimeReport ------ Modules in End-Path: p ---[Real sec]----
 TimeReport  per event    per visit  Name
-TimeReport   0.000112     0.000112  Phase2TrackerDumpClustersSoA
+TimeReport   0.334973     0.334973  Phase2TrackerDumpClusters
 
 TimeReport  per event    per visit  Name
 
 TimeReport ---------- Module Summary ---[Real sec]----
 TimeReport  per event     per exec    per visit  Name
-TimeReport   0.000112     0.000112     0.000112  Phase2TrackerDumpClustersSoA
+TimeReport   0.334973     0.334973     0.334973  Phase2TrackerDumpClusters
 
 TimeReport  per event     per exec    per visit  Name
 
@@ -168,12 +165,121 @@ T---Report end!
 
 
 Info in <TCanvas::MakeDefCanvas>:  created default TCanvas with name c1
-Info in <TCanvas::Print>: pdf file validation_plots/2025-07-24_18-38-46_dtc208_SoA/clusterR_isPSModulePixel.pdf has been created
-Info in <TCanvas::Print>: pdf file validation_plots/2025-07-24_18-38-46_dtc208_SoA/clusterZ_isPSModulePixel.pdf has been created
-Info in <TCanvas::Print>: pdf file validation_plots/2025-07-24_18-38-46_dtc208_SoA/clusterSize_isPSModulePixel.pdf has been created
-Info in <TCanvas::Print>: pdf file validation_plots/2025-07-24_18-38-46_dtc208_SoA/clusterR_isPSModuleStrip.pdf has been created
-Info in <TCanvas::Print>: pdf file validation_plots/2025-07-24_18-38-46_dtc208_SoA/clusterZ_isPSModuleStrip.pdf has been created
-Info in <TCanvas::Print>: pdf file validation_plots/2025-07-24_18-38-46_dtc208_SoA/clusterSize_isPSModuleStrip.pdf has been created
-Info in <TCanvas::Print>: pdf file validation_plots/2025-07-24_18-38-46_dtc208_SoA/clusterR_is2SModule.pdf has been created
-Info in <TCanvas::Print>: pdf file validation_plots/2025-07-24_18-38-46_dtc208_SoA/clusterZ_is2SModule.pdf has been created
-Info in <TCanvas::Print>: pdf file validation_plots/2025-07-24_18-38-46_dtc208_SoA/clusterSize_is2SModule.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterR.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterZ.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterCenter.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterSize.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterGlobalX.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterCol.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterR_isPSModulePixel.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterZ_isPSModulePixel.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterSize_isPSModulePixel.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterR_isPSModuleStrip.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterZ_isPSModuleStrip.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterSize_isPSModuleStrip.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterR_is2SModule.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterZ_is2SModule.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterSize_is2SModule.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterR_411853973.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterZ_411853973.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterR_411853974.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterR_412370037.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterR_411845749.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterR_411845750.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterR_412370038.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterZ_412370038.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterR_411845753.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterR_411845754.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterR_412370041.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterR_412370042.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterR_411845757.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterZ_411845757.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterR_411845758.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterZ_411845758.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterR_412370045.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterZ_412370045.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterR_412370046.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterZ_412370046.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterR_411845761.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterZ_411845761.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterR_411845762.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterZ_411845762.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterR_412370049.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterR_412370050.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterR_411849861.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterR_411849862.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterR_412374149.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterR_412374150.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterR_411849865.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterR_411849866.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterR_412374153.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterR_412374154.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterZ_412374154.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterR_411849869.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterR_411849870.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterR_412374157.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterR_412374158.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterR_411849873.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterZ_411849874.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterR_412374161.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterR_412378261.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterR_412378262.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterR_411341974.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterR_411337878.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterR_412378265.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterR_412378266.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterR_411853977.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterR_411853978.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterZ_411853978.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterR_412378269.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterR_412378270.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterZ_412378270.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterR_411853981.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterR_411853982.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterR_411853985.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterR_412378273.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterR_411853986.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterR_412378274.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterR_411337889.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterR_411337890.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterR_411346085.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterR_411346086.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterR_411346089.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterR_411346090.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterR_411858089.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterR_411858086.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterZ_411858086.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterR_411346093.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterR_411346094.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterR_411858090.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterR_411346097.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterR_411858094.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterR_411858097.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterR_411858098.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterR_412382385.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterR_412382386.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterR_411858081.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterR_412382369.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterR_411858082.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterR_412382370.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterR_411858085.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterZ_411858085.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterR_412382373.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterR_412382374.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterR_412382377.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterR_412382378.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterR_412382381.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterR_412382382.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterR_411337877.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterR_411337881.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterR_411337882.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterR_411337885.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterR_411341973.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterR_411341977.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterZ_411341977.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterR_411341978.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterR_411341981.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterR_411341982.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterR_411341985.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterR_411341986.pdf has been created
+Info in <TCanvas::Print>: pdf file validation_plots/2025-09-24_10-58-37_dtc208/clusterZ_411341986.pdf has been created

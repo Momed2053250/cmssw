@@ -52,7 +52,7 @@ private:
   const TrackerTopology* tTopo_ = nullptr;
   const TrackerGeometry* tGeom_ = nullptr;
   const TrackerDetToDTCELinkCablingMap* cablingMap_ = nullptr;
-  //std::map<int, std::pair<int, int>> stackMap_;
+  std::map<int, std::pair<int, int>> stackMap_;
 
   edm::Service<TFileService> fs_;
   TTree* outTree_;
@@ -114,6 +114,7 @@ void Phase2TrackerDumpClusters::beginJob() {
   outTree_->Branch("clusterGlobalY", &clusterGlobalY_, "clusterGlobalY/F");
   outTree_->Branch("clusterGlobalZ", &clusterGlobalZ_, "clusterGlobalZ/F");
 }
+
 void Phase2TrackerDumpClusters::endJob() {
   //     outTree_->GetDirectory()->cd();
   outTree_->Write();
@@ -135,6 +136,11 @@ void Phase2TrackerDumpClusters::analyze(const edm::Event& event, const edm::Even
   int count_clusters = 0;
   for (const auto& DSVItr : *clusters_handle) {
     uint32_t rawid(DSVItr.detId());
+
+    // ADDED: skip invalid placeholder entries
+    if (rawid == 0)
+      continue;
+
     DetId detId(rawid);
     const GeomDetUnit* geomDetUnit(tGeom_->idToDetUnit(detId));
     if (!geomDetUnit)
@@ -149,12 +155,15 @@ void Phase2TrackerDumpClusters::analyze(const edm::Event& event, const edm::Even
     //     output << (isPSModulePixel_ ? "isPSModulePixel_" : (isPSModuleStrip_ ? "isPSModuleStrip_" : "is2SModule_"));
     //     output << std::endl;
 
-    if (cablingMap_->knowsDetId(detId_ - 1)) {
+    dtcID_ = -1;  // ADDED: default to -1 if not found
+
+    // ADDED: protect cabling lookups (avoid underflow on detId-1/2)
+    if (detId_ > 2 && cablingMap_->knowsDetId(detId_ - 1)) {
       auto equal_range = cablingMap_->detIdToDTCELinkId(detId_ - 1);
       for (auto it = equal_range.first; it != equal_range.second; ++it) {
         dtcID_ = it->second.dtc_id();
       }
-    } else if (cablingMap_->knowsDetId(detId_ - 2)) {
+    } else if (detId_ > 2 && cablingMap_->knowsDetId(detId_ - 2)) {
       auto equal_range = cablingMap_->detIdToDTCELinkId(detId_ - 2);
       for (auto it = equal_range.first; it != equal_range.second; ++it) {
         dtcID_ = it->second.dtc_id();

@@ -1,5 +1,5 @@
 universe               = vanilla
-executable             = run_alpaka_validation.sh 
+executable             = run_validation_steps.sh
 output                 = validation.out
 error                  = validation.err
 log                    = validation.log
