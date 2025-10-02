@@ -1,0 +1,10 @@
+----- Begin Fatal Exception 01-Oct-2025 15:21:26 CEST-----------------------
+An exception of category 'LogicalFileNameNotFound' occurred while
+   [0] Constructing the EventProcessor
+   [1] Constructing input source of type PoolSource
+Exception Message:
+RootFileSequenceBase::initTheFile()
+Logical file name 'packed_only.root' was not found in the file catalog.
+If you wanted a local file, you forgot the 'file:' prefix
+before the file name in your configuration file.
+----- End Fatal Exception -------------------------------------------------
