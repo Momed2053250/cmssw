@@ -1,16 +1,12 @@
-## cfg file to run the packing and unpacking steps for Phase2 OT clusters
-## cfg file to run the packing and unpacking steps for Phase2 OT clusters
-## optionally, also run EDAnalyzer to dump the FEDRawData into a text file
-## outputs an EDM file containing the original FEDRawData and the unpacked clusters
+## cfg file to run the packing step for Phase2 OT clusters
+## outputs an EDM file containing the data to be processed by the Unpacker
 
 import FWCore.ParameterSet.Config as cms
 import FWCore.ParameterSet.VarParsing as VarParsing
 import FWCore.Utilities.FileUtils as FileUtils
 import os
 
-process = cms.Process("PACKANDUNPACK")
-process.options.numberOfThreads = 8
-process.options.numberOfStreams = 8
+process = cms.Process("PACKONLY")
 
 def get_input_mc_line(dataset_database, line_number):
     with open(dataset_database, 'r') as file:
@@ -21,7 +17,7 @@ def get_input_mc_line(dataset_database, line_number):
 
 options = VarParsing.VarParsing('analysis')
 
-# Add custom command-line arguments (unchanged)
+# Add custom command-line arguments
 options.register('cluster',
                  0,
                  VarParsing.VarParsing.multiplicity.singleton,
@@ -40,11 +36,22 @@ options.parseArguments()
 GEOMETRY = "D98"
 
 process.load('Configuration.StandardSequences.Services_cff')
-process.load('Configuration.StandardSequences.Accelerators_cff')
-process.load('HeterogeneousCore.AlpakaCore.ProcessAcceleratorAlpaka_cfi')
-process.load('HeterogeneousCore.CUDACore.ProcessAcceleratorCUDA_cfi')
 process.load('Configuration.EventContent.EventContent_cff')
 process.load('Configuration.StandardSequences.MagneticField_cff')
+process.load('FWCore.MessageService.MessageLogger_cfi')
+
+# CHANGED: rely only on the Service block; 
+process.MessageLogger = cms.Service("MessageLogger",
+    destinations = cms.untracked.vstring('logPacker'),
+    categories = cms.untracked.vstring('ClusterToRawProducer'),
+    debugModules  = cms.untracked.vstring('*'),
+    logPacker = cms.untracked.PSet(
+        threshold = cms.untracked.string('DEBUG'),
+        INFO  = cms.untracked.PSet(limit = cms.untracked.int32(0)),
+        DEBUG = cms.untracked.PSet(limit = cms.untracked.int32(0)),
+        ClusterToRawProducer = cms.untracked.PSet(limit = cms.untracked.int32(999999999))
+    ),
+)
 
 if GEOMETRY == "D88" or GEOMETRY == 'D98':
     process.load('Configuration.Geometry.GeometryExtendedRun4' + GEOMETRY + 'Reco_cff')
@@ -58,16 +65,16 @@ process.load('Configuration.StandardSequences.FrontierConditions_GlobalTag_cff')
 from Configuration.AlCa.GlobalTag import GlobalTag
 process.GlobalTag = GlobalTag(process.GlobalTag, '133X_mcRun4_realistic_v1', '')
 
-process.maxEvents = cms.untracked.PSet(input = cms.untracked.int32(-1))
+process.maxEvents = cms.untracked.PSet(input = cms.untracked.int32(-1))  # UNCHANGED
 
 process.source = cms.Source("PoolSource",
     fileNames = cms.untracked.vstring(
-        "/store/relval/CMSSW_14_0_0_pre2/RelValTTbar_14TeV/GEN-SIM-DIGI-RAW/"
-        "PU_133X_mcRun4_realistic_v1_STD_2026D98_PU200_RV229-v1/"
-        "2580000/0b2b0b0b-f312-48a8-9d46-ccbadc69bbfd.root"
+        "/store/relval/CMSSW_14_0_0_pre2/RelValTTbar_14TeV/GEN-SIM-DIGI-RAW/PU_133X_mcRun4_realistic_v1_STD_2026D98_PU200_RV229-v1/2580000/0b2b0b0b-f312-48a8-9d46-ccbadc69bbfd.root"
+#       "/store/relval/CMSSW_14_0_0_pre2/RelValDisplacedSingleMuFlatPt1p5To8/GEN-SIM-DIGI-RAW/133X_mcRun4_realistic_v1_STD_2026D98_noPU_RV229-v1/2580000/3ce31040-55a5-4469-8ee2-16d050bb6ade.root"
     )
 )
 
+# Conditions
 process.load("CondCore.CondDB.CondDB_cfi")
 process.CondDB.connect = 'frontier://FrontierProd/CMS_CONDITIONS'
 
@@ -76,13 +83,12 @@ process.PoolDBESSource = cms.ESSource("PoolDBESSource",
     DumpStat = cms.untracked.bool(True),
     toGet = cms.VPSet(cms.PSet(
         record = cms.string('TrackerDetToDTCELinkCablingMapRcd'),
-        tag = cms.string("TrackerDetToDTCELinkCablingMap__OT800_IT711__T33__OTOnly"),
+        tag    = cms.string("TrackerDetToDTCELinkCablingMap__OT800_IT711__T33__OTOnly"),
     )),
 )
 
 process.es_prefer_local_cabling = cms.ESPrefer("PoolDBESSource", "")
 
-# --- modules needed up to the packer ---
 process.ClustersFromPhase2TrackerDigis = cms.EDProducer("Phase2TrackerClusterizer",
     src = cms.InputTag("mix","Tracker"),
 )
@@ -91,7 +97,9 @@ process.Packer = cms.EDProducer("ClusterToRawProducer",
     Phase2Clusters = cms.InputTag("ClustersFromPhase2TrackerDigis"),
 )
 
-# (Analyzer/Unpacker/Converter intentionally NOT present in this file)
+process.Analyzer = cms.EDAnalyzer("RawAnalyzer",
+    fedRawDataCollection = cms.InputTag("Packer"),
+)
 
 process.out = cms.OutputModule("PoolOutputModule",
     splitLevel = cms.untracked.int32(0),
@@ -101,34 +109,19 @@ process.out = cms.OutputModule("PoolOutputModule",
         'keep FEDRawDataCollection_*_*_*',
         'keep *_ClustersFromPhase2TrackerDigis_*_*',
         'keep *_Packer_*_*',
-        'keep *_Unpacker_*_*',
         'keep *_mix_Tracker_*',
-        'keep *_ClusterConverter_*_*'
     ),
-    fileName = cms.untracked.string('raw2clusters.root')
+    fileName = cms.untracked.string('PackedData.root')  
 )
 
 from Configuration.ProcessModifiers.premix_stage2_cff import premix_stage2
 premix_stage2.toModify(process.ClustersFromPhase2TrackerDigis, rawHits = ["mixData:Tracker"])
 
 process.Timing = cms.Service("Timing",
-    summaryOnly = cms.untracked.bool(True),
+    summaryOnly  = cms.untracked.bool(True),
     useJobReport = cms.untracked.bool(True)
 )
-# mark framework transitions in the NVIDIA profiler (kept exactly)
-process.NVProfilerService = cms.Service("NVProfilerService",
-    showModulePrefetching = cms.untracked.bool(False)
-)
 
-# --------- path: PACKER ONLY ----------
-process.dtc = cms.Path(
-    process.ClustersFromPhase2TrackerDigis *
-    process.Packer
-)
-
-process.output = cms.EndPath(process.out)
-
-# keep the duplicate NVProfilerService block exactly as in your original
-process.NVProfilerService = cms.Service("NVProfilerService",
-    showModulePrefetching = cms.untracked.bool(False)
-)
+process.dtc    = cms.Path(process.ClustersFromPhase2TrackerDigis * process.Packer)  
+# To also dump text via Analyzer, add: * process.Analyzer
+process.output = cms.EndPath(process.out)  
