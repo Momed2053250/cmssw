@@ -110,11 +110,11 @@ for (int i = 0; i < 4; ++i) {
 
           // sensor_1_cic_0 and sensor_2_cic_0 form a single output daq channel.
           SensorHybrid hybrid_1(
-              sensor_1_cluster_collection, sensor_2_cluster_collection, nullIter, false, trackerGeometry, eventId_);
+              det_id, sensor_1_cluster_collection, sensor_2_cluster_collection, nullIter, false, trackerGeometry, eventId_);
 
           // // sensor_1_cic_1 and sensor_2_cic_1 form a single output daq channel.
           SensorHybrid hybrid_2(
-              sensor_1_cluster_collection, sensor_2_cluster_collection, nullIter, true, trackerGeometry, eventId_);
+              det_id, sensor_1_cluster_collection, sensor_2_cluster_collection, nullIter, true, trackerGeometry, eventId_);
 
           // sensor_2 is always isUpper == 1 for 2S.
           // sensor_2 is always isLower == 0 for 2S.

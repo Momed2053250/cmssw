@@ -11,20 +11,20 @@
 
 class SensorHybrid {
 private:
-  std::vector<Phase2TrackerCluster1D*> get_clusters_on_cic(
-      edmNew::DetSetVector<Phase2TrackerCluster1D>::const_iterator clusterIterator,
+
+  void set_sensor_type(
+      const DetId& det_id,
       const TrackerGeometry& trackerGeometry,
       const int internal_id) {
     using namespace Phase2TrackerSpecifications;
-    using namespace Phase2DAQFormatSpecification;
 
-    const GeomDetUnit* sensor_unit = trackerGeometry.idToDetUnit(clusterIterator->detId());
-    unsigned int cic_boundary_in_z = CIC_Z_BOUNDARY_STRIPS;
+    const GeomDetUnit* sensor_unit = trackerGeometry.idToDetUnit(det_id + 1);
+    cic_boundary_in_z_ = CIC_Z_BOUNDARY_STRIPS;
 
     if (sensor_unit == nullptr)
       throw cms::Exception("LogicError") << __FILE__ << " " << __LINE__ << "DetUnit not found";
 
-    TrackerGeometry::ModuleType moduleType = trackerGeometry.getDetectorType(clusterIterator->detId());
+    TrackerGeometry::ModuleType moduleType = trackerGeometry.getDetectorType(det_id);
     switch (moduleType) {
       case TrackerGeometry::ModuleType::Ph2PSS:
         if (internal_id == 1) {
@@ -48,20 +48,27 @@ private:
         } else if (internal_id == 2) {
           sensor_type_2 = TrackerGeometry::ModuleType::Ph2PSP;
         }
-        cic_boundary_in_z = CIC_Z_BOUNDARY_PIXEL;
+        cic_boundary_in_z_ = CIC_Z_BOUNDARY_PIXEL;
         break;
 
       default:
         throw cms::Exception("InvalidModuleType")
-            << "Unexpected TrackerGeometry::ModuleType for detId: " << clusterIterator->detId() << ".";
+            << "Unexpected TrackerGeometry::ModuleType for detId: " << det_id << ".";
     }
+  }
+
+  std::vector<Phase2TrackerCluster1D*> get_clusters_on_cic(
+      edmNew::DetSetVector<Phase2TrackerCluster1D>::const_iterator clusterIterator
+      ) {
+    using namespace Phase2TrackerSpecifications;
+    using namespace Phase2DAQFormatSpecification;
 
     std::vector<Phase2TrackerCluster1D*> filteredClusters;
 
     for (auto& cluster : *clusterIterator) {
-      if (cic_id_ == true && cluster.column() > cic_boundary_in_z) {
+      if (cic_id_ == true && cluster.column() > cic_boundary_in_z_) {
         filteredClusters.push_back(&cluster);
-      } else if (cic_id_ == false && cluster.column() <= cic_boundary_in_z) {
+      } else if (cic_id_ == false && cluster.column() <= cic_boundary_in_z_) {
         filteredClusters.push_back(&cluster);
       }
     }
@@ -195,10 +202,13 @@ private:
       if (bitsFilled > 0) {
         payload.push_back(currentWord);
       }
+    } else {
+      edm::LogError("SensorHybrid") << "Sensors 1 and 2 have inconsistent types";
     }
   }
 
   bool cic_id_;
+  unsigned int cic_boundary_in_z_;
 
   std::vector<Phase2TrackerCluster1D*> sensor_1_clusters_;  // always pixel in the case of Phase2PS
   TrackerGeometry::ModuleType sensor_type_1;
@@ -210,18 +220,21 @@ private:
   unsigned int eventId_ = 0;
 
 public:
-  SensorHybrid(edmNew::DetSetVector<Phase2TrackerCluster1D>::const_iterator sensor_1,
+  SensorHybrid(const DetId& det_id,
+               edmNew::DetSetVector<Phase2TrackerCluster1D>::const_iterator sensor_1,
                edmNew::DetSetVector<Phase2TrackerCluster1D>::const_iterator sensor_2,
                const edmNew::DetSetVector<Phase2TrackerCluster1D>::const_iterator nullIter,
                const bool cic_id,
                const TrackerGeometry& trackerGeometry,
                const unsigned int eventId)
       : cic_id_(cic_id), eventId_(eventId) {
+    set_sensor_type(det_id, trackerGeometry, 1);  
+    set_sensor_type(det_id, trackerGeometry, 2);  
     // Sensors containing no clusters are missing from the DetSetVector, so must protect against this.
     if (sensor_1 != nullIter)
-      sensor_1_clusters_ = get_clusters_on_cic(sensor_1, trackerGeometry, 1);
+      sensor_1_clusters_ = get_clusters_on_cic(sensor_1);
     if (sensor_2 != nullIter)
-      sensor_2_clusters_ = get_clusters_on_cic(sensor_2, trackerGeometry, 2);
+      sensor_2_clusters_ = get_clusters_on_cic(sensor_2);
   }
 
   unsigned int get_payload_size() {
